@@ -1,0 +1,25 @@
+{
+  "name": "pickcat-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PICKCAT 正式网页版 —— Pickcat-Reborn 原版 UI + 官方 pickcat.dao3.fun API（119 条路由全量迁移）",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check": "node --check server.mjs && node --check web/app.js && node --check web/auth.js && node --check web/login.js && node --check web/api-official.js",
+    "verify": "node scripts/verify.mjs",
+    "test:moss": "node scripts/test-moss.mjs",
+    "assets": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-assets.ps1",
+    "gen:routes": "node scripts/gen-endpoints.mjs",
+    "gen:docs": "node scripts/gen-inventory.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CodeManTeam/pickcat-web"
+  }
+}

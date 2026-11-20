@@ -1,0 +1,318 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1677ff" />
+    <title>PICKCAT 正式网页版</title>
+    <link rel="icon" href="public/assets/pickcat/ic_home_logo.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="phone-shell">
+      <section class="splash" data-splash>
+        <img src="public/assets/bg_launch.webp" alt="PICKCAT" />
+      </section>
+
+      <main class="app" aria-live="polite">
+        <button class="view-back-btn" type="button" data-view-back aria-label="返回">
+          <img src="public/assets/pickcat/imoji_back.png" alt="" />
+          <span>返回</span>
+        </button>
+        <header class="topbar" data-topbar>
+          <h1 class="brand" data-title><img src="public/assets/pickcat/ic_home_logo.png" alt="PICKCAT" /></h1>
+          <nav class="tabs topbar-tabs" aria-label="首页分类" data-home-tabs>
+            <button class="tab active" type="button" data-feed-tab="recommend">推荐</button>
+            <button class="tab" type="button" data-feed-tab="discover">发现</button>
+            <button class="tab" type="button" data-feed-tab="following">关注</button>
+          </nav>
+          <div class="top-actions">
+            <button class="icon-btn" type="button" data-search aria-label="搜索">
+              <img class="top-action-img" src="public/assets/pickcat/ic_search.png" alt="" />
+            </button>
+          </div>
+        </header>
+
+        <section class="view active" id="home-view" data-view="home">
+          <div class="feed" data-feed></div>
+          <div class="feed-sentinel" data-feed-sentinel>继续滑动加载社区内容</div>
+        </section>
+
+        <section class="view" id="circle-view" data-view="circle">
+          <div class="circle-entry-row" data-circle-shortcuts></div>
+          <section class="oldsquaw-zone" data-oldsquaw-zone></section>
+          <section class="section-head">
+            <h2>官方喵圈</h2>
+            <button type="button" class="text-btn" data-circle-more>查看更多 &gt;</button>
+          </section>
+          <div class="circle-grid" data-circles></div>
+          <div class="feed compact circle-feed" data-circle-feed></div>
+        </section>
+
+        <section class="view" id="publish-view" data-view="publish">
+          <div class="composer">
+            <h2>发布动态</h2>
+            <select class="select-input" data-compose-board aria-label="选择喵圈"></select>
+            <input class="title-input" data-compose-title placeholder="标题" />
+            <textarea data-compose-body placeholder="分享作品、想法或喵圈内容"></textarea>
+            <div class="compose-tools">
+              <button type="button" class="chip active">动态</button>
+              <button type="button" class="chip">作品</button>
+              <button type="button" class="chip">喵圈</button>
+              <button type="button" class="chip">控件</button>
+              <button type="button" class="chip">扩展</button>
+              <button type="button" class="chip">教程</button>
+            </div>
+            <button type="button" class="primary-btn" data-post>发布</button>
+          </div>
+        </section>
+
+        <section class="view" id="message-view" data-view="message">
+          <div class="msg-shell" data-msg-shell>
+            <div class="msg-head">
+              <div class="msg-tabs" data-msg-tabs>
+                <button class="tab active" type="button" data-msg-tab="all">全部</button>
+                <button class="tab" type="button" data-msg-tab="reply">回复</button>
+                <button class="tab" type="button" data-msg-tab="like">赞</button>
+                <button class="tab" type="button" data-msg-tab="mention">@我</button>
+                <button class="tab" type="button" data-msg-tab="system">系统</button>
+              </div>
+              <button class="text-btn" type="button" data-msg-readall>全部已读</button>
+            </div>
+            <div class="msg-list" data-msg-list></div>
+            <div class="msg-more" hidden><button class="text-btn" type="button" data-msg-more>加载更多</button></div>
+          </div>
+        </section>
+
+        <section class="view" id="mine-view" data-view="mine">
+          <div class="mine-hero">
+            <img src="public/assets/bg_mine_header.png" alt="" />
+            <button class="icon-btn light" type="button" data-mine-menu aria-label="更多">
+              <img class="top-action-img menu-img" src="public/assets/pickcat/ic_more_mine_black.png" alt="" />
+            </button>
+          </div>
+          <section class="profile-card">
+            <div class="avatar">皮</div>
+            <div class="profile-main">
+              <h2>未登录</h2>
+              <p>Pickcat 复刻计划 · 前端多端原型</p>
+            </div>
+          </section>
+          <nav class="profile-tabs">
+            <button class="tab active" type="button">动态</button>
+            <button class="tab" type="button">作品</button>
+            <button class="tab" type="button">喵圈</button>
+          </nav>
+          <div class="feed compact" data-mine-feed></div>
+          <footer class="mine-footer">
+            <section class="mine-about">
+              <h3>关于 PICKCAT 正式网页版</h3>
+              <p>沿用 Pickcat-Reborn 的整套 UI（HTML/CSS/JS，手机端优先），数据层整体迁移到官方 <code>https://pickcat.dao3.fun/api/v1</code>：首页动态、作品浏览、喵圈（板块）、帖子详情与回帖、搜索、个人主页、消息通知都读取官方真实数据，共 119 条官方路由全部可达。</p>
+            </section>
+            <section class="mine-ack">
+              <h3>数据与致谢</h3>
+              <p>页面结构、图标与交互沿用 Pickcat-Reborn 原版 UI；内容、作品、评论、用户与通知全部来自 PICKCAT 官方接口（pickcat.dao3.fun/api/v1）。</p>
+              <p>感谢 PICKCAT 官方与所有在社区分享作品、教程和灵感的创作者。</p>
+            </section>
+            <section class="mine-legal">
+              <h3>版权与免责声明</h3>
+              <p>PICKCAT 正式网页版 v1.0.0 &mdash; UI 源自 CodeManTeam / Pickcat-Reborn，数据来自 PICKCAT 官方 API。</p>
+              <p>本软件为独立开发的第三方客户端，<strong>与 PICKCAT 官方无任何关联</strong>，未使用任何官方私有代码或 SDK。项目仅通过公开 API 与服务端交互。</p>
+              <p>本软件仅供学习交流、技术研究及个人使用，不得用于商业目的。使用本软件产生的任何数据、内容及行为均由用户自行负责。</p>
+              <p>项目中嵌入的第三方工具（BetterNemo、CoCo Pro 等）版权归原作者（Oldsquaw 等）所有，Pickcat Reborn 仅集成其公开发布版本，未做修改。</p>
+              <p>本项目采用自定义限制许可（禁止商用，修改/分发需保持同条件），详见 LICENSE.md。项目地址：<a href="https://github.com/CodeManTeam/Pickcat-Reborn" target="_blank" rel="noreferrer">github.com/CodeManTeam/Pickcat-Reborn</a></p>
+            </section>
+          </footer>
+
+          <div class="mine-menu-sheet hidden" data-mine-menu-sheet aria-hidden="true">
+            <button class="sheet-backdrop" type="button" data-mine-menu-close aria-label="关闭菜单"></button>
+            <div class="sheet-panel" role="dialog" aria-label="更多">
+              <div class="sheet-handle"></div>
+              <div class="mine-menu-list">
+                <button class="mine-menu-item" type="button" data-mine-action="works">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  </span>
+                  <span>作品管理</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="favorites">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  </span>
+                  <span>我的收藏</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="pick">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </span>
+                  <span>我的 pick</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="feedback">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <span>用户反馈</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="settings">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                  </span>
+                  <span>设置</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="logout">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  </span>
+                  <span>退出登录</span>
+                </button>
+                <button class="mine-menu-item" type="button" data-mine-action="about">
+                  <span class="mine-menu-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </span>
+                  <span>关于我们</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="work-view" data-view="work">
+          <article class="work-reader" data-work-reader></article>
+        </section>
+
+        <section class="view" id="user-view" data-view="user">
+          <article class="user-reader" data-user-reader></article>
+        </section>
+
+        <section class="view" id="tool-view" data-view="tool">
+          <article class="tool-runner" data-tool-runner></article>
+        </section>
+
+        <section class="view" id="login-view" data-view="login">
+          <form class="login-panel" data-login-form>
+            <h2>PICKCAT</h2>
+            <p>登录后可以发帖、回复、点赞、收藏和接收通知</p>
+            <label class="login-field">
+              <img src="public/assets/pickcat/ic_login_user.png" alt="" />
+              <input name="account" autocomplete="username" placeholder="已验证的邮箱或中国大陆手机号" />
+            </label>
+            <label class="login-field">
+              <img src="public/assets/pickcat/icon_login_password.png" alt="" />
+              <input name="password" type="password" autocomplete="current-password" placeholder="输入密码" />
+            </label>
+            <label class="remember-row">
+              <input name="remember" type="checkbox" checked />
+              <span>保持登录状态</span>
+            </label>
+            <button class="primary-btn" type="button" id="pickcat-login-btn">登录</button>
+            <div id="aliyun-captcha-anchor" class="captcha-anchor"></div>
+            <button class="login-alt" type="button" data-login-toggle-cookie>没有账号密码？用 Cookie 登录</button>
+            <div class="login-cookie hidden" data-login-cookie>
+              <input name="cookie" autocomplete="off" placeholder="pickcat_session 的值" />
+              <button class="primary-btn" type="button" data-cookie-submit>用 Cookie 连接</button>
+            </div>
+            <div class="api-note" data-login-status>登录态保存在本机浏览器（Cookie + localStorage）</div>
+          </form>
+        </section>
+
+        <section class="view" id="search-view" data-view="search">
+          <div class="search-page">
+            <label class="search-box">
+              <img class="search-box-icon" src="public/assets/pickcat/ic_search_grey.png" alt="" />
+              <input data-search-input placeholder="搜点有趣的" />
+            </label>
+            <button class="text-btn" type="button" data-cancel-search>取消</button>
+          </div>
+          <section class="search-history">
+            <div class="section-head">
+              <h2>搜索历史</h2>
+              <button type="button" class="text-btn" data-clear-search>清空记录</button>
+            </div>
+            <div class="chips" data-history></div>
+          </section>
+          <nav class="tabs search-tabs hidden" aria-label="搜索结果分类" data-search-tabs>
+            <button class="tab active" type="button" data-search-tab="posts">帖子</button>
+            <button class="tab" type="button" data-search-tab="works">作品</button>
+          </nav>
+          <div class="feed compact" data-search-results-posts></div>
+          <div class="feed compact hidden" data-search-results-works></div>
+        </section>
+
+        <section class="view" id="detail-view" data-view="detail">
+          <article class="detail" data-detail>
+            <div class="loading-card">正在读取社区残留内容...</div>
+          </article>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-item active" type="button" data-nav="home">
+          <img data-icon-normal="public/assets/tab_main_home_normal.png" data-icon-active="public/assets/tab_main_home_selected.png" src="public/assets/tab_main_home_selected.png" alt="" />
+          <span>首页</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="circle">
+          <img data-icon-normal="public/assets/tab_main_prefecture_normal.png" data-icon-active="public/assets/tab_main_prefecture_selected.png" src="public/assets/tab_main_prefecture_normal.png" alt="" />
+          <span>喵圈</span>
+        </button>
+        <button class="create-btn" type="button" data-create-open aria-label="发布">
+          <img src="public/assets/tab_main_main_create.png" alt="" />
+        </button>
+        <button class="nav-item" type="button" data-nav="message">
+          <img data-icon-normal="public/assets/tab_main_msg_nomal.png" data-icon-active="public/assets/tab_main_msg_selected.png" src="public/assets/tab_main_msg_nomal.png" alt="" />
+          <span>消息</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="mine">
+          <img data-icon-normal="public/assets/tab_main_mine_normal.png" data-icon-active="public/assets/tab_main_mine_selected.png" src="public/assets/tab_main_mine_normal.png" alt="" />
+          <span>我的</span>
+        </button>
+      </nav>
+
+      <section class="create-sheet hidden" data-create-sheet aria-hidden="true">
+        <button class="sheet-backdrop" type="button" data-create-close aria-label="关闭发布菜单"></button>
+        <div class="sheet-panel" role="dialog" aria-label="发布">
+          <button class="sheet-close" type="button" data-create-close data-create-close-panel aria-label="关闭">×</button>
+          <div class="sheet-handle"></div>
+          <section class="sheet-section">
+            <h2>创作工具</h2>
+            <div class="sheet-grid">
+              <a class="sheet-item" href="#tool-nemo" data-open-tool="nemo">
+                <img src="public/assets/pickcat/nemo.png" alt="" />
+                <span>Nemo</span>
+              </a>
+              <a class="sheet-item" href="#tool-kitten" data-open-tool="kitten">
+                <img src="public/assets/pickcat/kitten.png" alt="" />
+                <span>Kitten</span>
+              </a>
+              <a class="sheet-item" href="#tool-kn" data-open-tool="kn">
+                <img src="public/assets/pickcat/kn.png" alt="" />
+                <span>KittenN</span>
+              </a>
+              <span class="sheet-item disabled" aria-disabled="true">
+                <img src="public/assets/pickcat/turtle.png" alt="" />
+                <span>海龟</span>
+              </span>
+            </div>
+          </section>
+          <section class="sheet-section">
+            <h2>发布动态</h2>
+            <div class="sheet-grid publish-grid">
+              <a class="sheet-item" href="#publish-text" data-create-publish="text">
+                <span class="sheet-icon-circle"><img src="public/assets/pickcat/ic_photo.png" alt="" /></span>
+                <span>图文</span>
+              </a>
+              <a class="sheet-item" href="#publish-video" data-create-publish="video">
+                <span class="sheet-icon-circle"><img src="public/assets/pickcat/ic_video.png" alt="" /></span>
+                <span>视频</span>
+              </a>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+    <script src="auth.js"></script>
+    <script src="login.js"></script>
+    <script src="api-official.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
