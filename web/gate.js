@@ -97,7 +97,7 @@
 
   const lockStyle = document.createElement("style");
   lockStyle.textContent =
-    "html.gate-locked .phone-shell{visibility:hidden!important;pointer-events:none!important}";
+    "html.gate-locked .phone-shell,html.gate-locked .shell{visibility:hidden!important;pointer-events:none!important}";
   (document.head || document.documentElement).appendChild(lockStyle);
 
   const template = (requiredText, officialUrl) => `

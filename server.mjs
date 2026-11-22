@@ -433,13 +433,13 @@ async function handleApiProxy(req, res, url) {
 
   // 客户端登录态：浏览器带来的 Cookie（或显式 X-Pickcat-Session）原样转发给官方
   const explicit = req.headers['x-pickcat-session'];
-  const browserCookie = pickCookie(req.headers.cookie);
+  const browserCookie = explicit ? String(explicit) : forwardCookie(req.headers.cookie);
 
   const upstream = await upstreamRaw(url.pathname + (url.search || ''), {
     method,
     headers,
     body,
-    cookie: explicit ? String(explicit) : browserCookie,
+    cookie: browserCookie,
   });
 
   const outHeaders = {
@@ -465,6 +465,33 @@ function pickCookie(header) {
     if (k === COOKIE_NAME) return rest.join('=');
   }
   return '';
+}
+
+/**
+ * 转发给官方站的 Cookie 白名单
+ *
+ * 除了会话，官方还会下发 `pickcat_recommendation_subject`（匿名推荐主体，决定游标绑定与
+ * 已看过去重）以及 MOSS 的几个 Cookie。只取自己站点的 cookie 名，避免把无关 Cookie 带上去。
+ */
+function forwardCookie(header) {
+  if (!header) return '';
+  const keep = [];
+  for (const part of String(header).split(';')) {
+    const pair = part.trim();
+    if (!pair) continue;
+    const name = pair.split('=')[0];
+    if (!name) continue;
+    if (
+      name === COOKIE_NAME ||
+      name.startsWith('pickcat_') ||
+      name.startsWith('__Host-') ||
+      name.startsWith('__Secure-') ||
+      /moss/i.test(name)
+    ) {
+      keep.push(pair);
+    }
+  }
+  return keep.join('; ');
 }
 
 /**
@@ -890,6 +917,10 @@ const server = http.createServer(async (req, res) => {
         ],
         routes: ROUTES,
       });
+    }
+    // X 风格时间线视图：/x 与 /x/ 都指向 web/x/index.html（前端用 hash 路由）
+    if (url.pathname === '/x' || url.pathname === '/x/') {
+      url.pathname = '/x/index.html';
     }
     if (url.pathname.startsWith('/api/v1/')) return await handleApiProxy(req, res, url);
     if (url.pathname.startsWith('/legacy')) return await handleLegacy(req, res, url);

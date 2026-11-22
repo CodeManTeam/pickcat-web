@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "check": "node --check server.mjs && node --check web/app.js && node --check web/auth.js && node --check web/login.js && node --check web/api-official.js",
+    "check": "node --check server.mjs && node --check web/app.js && node --check web/auth.js && node --check web/login.js && node --check web/api-official.js && node --check web/x/x.js",
     "verify": "node scripts/verify.mjs",
     "visitors": "node scripts/visitors.mjs",
     "test:moss": "node scripts/test-moss.mjs",

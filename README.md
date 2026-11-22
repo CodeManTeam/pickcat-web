@@ -1,4 +1,4 @@
-﻿# PICKCAT 正式网页版
+# PICKCAT 正式网页版
 
 **UI 直接用 Pickcat-Reborn 那一套**（`index.html` + `styles.css` + `app.js` + `public/assets`，手机端优先的
 Pickcat 原生观感，一行样式没重做），**只把数据层整体换成官方 API**：
@@ -16,6 +16,37 @@ Pickcat 原生观感，一行样式没重做），**只把数据层整体换成�
 > 装好 Tampermonkey 后直接开
 > <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/master/dist/pickcat-mobile.user.js>
 > 安装，再打开 <https://pickcat.dao3.fun/> 就是手机版旧界面；右侧「官方」小挂耳可随时切回。
+
+## X 风格时间线视图（`/x`）
+
+<http://127.0.0.1:4173/x> —— 同一份官方数据，换成 X / Twitter 的三栏时间线：
+左栏导航 + 中间 600px 时间线（推荐 / 最新 / 关注）+ 右栏热门喵圈与活跃训练师，
+移动端自动变成「顶栏 + 标签页 + 底部 tab」。原手机版 UI 一行没动。
+
+| 首页（时间线） | 帖子详情（楼中楼） | 用户主页 |
+| --- | --- | --- |
+| ![时间线](scripts/shots/x-home.png) | ![帖子](scripts/shots/x-thread.png) | ![用户](scripts/shots/x-profile.png) |
+
+| 移动端 | 卡片「···」菜单 | 探索（热门榜） |
+| --- | --- | --- |
+| ![移动端](scripts/shots/x-mobile.png) | ![菜单](scripts/shots/x-menu.png) | ![探索](scripts/shots/x-explore.png) |
+
+- 路由（hash，纯静态）：`#/home/:tab`、`#/explore/:sort`、`#/search/:q`、
+  `#/tag/:slug/:name/:sort`、`#/t/:topicId`、`#/u/:userId`、`#/me`
+- 无限滚动：游标来自 `pageInfo.nextCursor`，卡片按 `id` 去重；滚动哨兵提前 900px 预取
+- 数据：`/topic-recommendations`、`/topics`、`/topics/{id}`、`/topics/{id}/posts`、
+  `/users/{id}`、`/users/{id}/topics`、`/search/users`
+- 登录：复用 `web/auth.js` 的 `pickcat_session`，页面内可直接粘贴 Cookie；
+  登录后点赞（`PUT /posts/{id}/like`）与关注（`PUT /users/{id}/follow`）可用
+- 外观：亮色 / 暗色（蓝）/ 纯黑三档，`localStorage` 记忆
+- 入口门禁：与手机版共用 `web/gate.js` 的第三方声明（逐字签署，只存 `localStorage`），
+  未签署时页面内容整体隐藏；签署过一次两边都不再询问
+- 已知限制：官方推荐流的 HMAC 游标在匿名访问下会返回 `RECOMMENDATION_CURSOR_INVALID`
+  （2026-11-22 实测），所以「推荐」从第二页起自动降级到热门榜，并在列表里注明；
+  「最新」和热门榜的 base64 游标分页正常
+- `server.mjs` 的 `/api/v1` 反代改成按**白名单**转发 Cookie
+  （`pickcat_session`、`pickcat_recommendation_subject`、`__Host-` / `__Secure-`、moss 相关），
+  这样匿名推荐主体、已看过去重和 MOSS 会话和官方站行为一致
 
 ## 快速开始
 
@@ -58,6 +89,7 @@ pickcat-web/
 │   ├── app.js              # ← Reborn 原版逻辑，仅替换 `const api = {...}` 与登录函数
 │   ├── auth.js             # ★ 客户端登录态：Cookie 读写、校验、过期检测、登出
 │   ├── api-official.js     # ★ 官方 API 适配层（把官方响应映射回 Reborn 期望结构）
+│   ├── x/                  # ★ X 风格时间线（/x，独立样式与逻辑，不改上面这套 UI）
 │   └── public/assets/      # ← Reborn 原版 50 个图标/背景资源
 ├── lib/                    # 通用 SDK（api-endpoints.js 119 条路由 + client.js 语义化封装）
 ├── docs/                   # 迁移映射、路由清单
@@ -93,6 +125,7 @@ pickcat-web/
 ```bash
 node scripts/verify.mjs                     # 端到端 16 项：反代、二进制、legacy 兼容层、401 拦截
 node scripts/probe-ui.mjs http://127.0.0.1:4173/ shot.png 430 932   # UI 探针：截图 + 控制台错误 + 关键节点计数
+node scripts/probe-x.mjs "http://127.0.0.1:4173/x#/home/recommended" x.png 1440 1000 3  # X 视图：滚动 3 屏后统计卡片数/错误并截图
 ```
 
 实测：首页 71 张卡片、喵圈 10 个板块、帖子详情 16 层楼中楼、用户主页真实粉丝列表，控制台 0 错误。
