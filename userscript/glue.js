@@ -125,6 +125,53 @@ function installRestorePill() {
 }
 
 /* ------------------------------------------------------------------ */
+/* 滚轮：官方站的滚动劫持会把 wheel 事件 preventDefault 掉，            */
+/* 导致旧版界面里滚轮完全没反应（拖动滚动条/触摸拖动却正常）。           */
+/* 这里在 window 捕获阶段抢先接管：自己做滚动，再阻止事件继续传播。       */
+/* ------------------------------------------------------------------ */
+
+function findScrollableAncestor(node) {
+  let el = node instanceof Element ? node : null;
+  while (el && el !== document.body && el !== document.documentElement) {
+    const style = getComputedStyle(el);
+    if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 2) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function onWheel(event) {
+  if (!document.getElementById(HOST_ID)) return;
+  if (event.ctrlKey) return; // 触控板捏合缩放，交给浏览器
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+  const dy = event.deltaY * unit;
+  const dx = event.deltaX * unit;
+  if (!dx && !dy) return;
+
+  const scroller = findScrollableAncestor(event.target);
+  if (scroller) {
+    const before = scroller.scrollTop;
+    scroller.scrollTop = Math.max(0, Math.min(scroller.scrollHeight, before + dy));
+    if (scroller.scrollTop !== before) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    return;
+  }
+
+  const beforeY = window.scrollY;
+  window.scrollBy(dx, dy);
+  if (window.scrollY !== beforeY) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
+
+function installWheelScroll() {
+  window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+}
+
+/* ------------------------------------------------------------------ */
 /* 错误兜底                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -196,6 +243,8 @@ if (!enabled) {
 } else {
   /* 先把官方界面藏掉，避免旧版挂载前闪一下 Nuxt 界面 */
   addStyle(HOST_CSS);
+  /* 必须尽早注册：抢在官方滚动劫持之前拿到 wheel 事件 */
+  installWheelScroll();
   whenBody(() => {
     try {
       mount();
