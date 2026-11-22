@@ -4511,6 +4511,16 @@ function bindEvents() {
     { passive: true }
   );
   window.addEventListener("pagehide", () => saveScrollPosition());
+  // 官方会话过期：清掉本地登录态并提示，而不是让按钮「点了没反应」
+  window.addEventListener("pickcat:unauthorized", () => {
+    if (!state.auth?.token) return;
+    state.auth = null;
+    state.user = null;
+    localStorage.removeItem("pickcat:auth");
+    localStorage.removeItem("pickcat:user");
+    renderMineShell(null);
+    statusToast("登录已过期，请重新登录");
+  });
   // 用户一旦自己滚动，就取消还没执行完的恢复，别把人拽回去
   ["wheel", "touchstart", "keydown"].forEach((type) => {
     window.addEventListener(type, cancelScrollRestore, { passive: true });

@@ -22,7 +22,7 @@ const ROOT = join(HERE, '..');
 const WEB = join(ROOT, 'web');
 const DIST = join(ROOT, 'dist');
 
-const VERSION = process.env.PICKCAT_UA_VERSION || '1.0.3';
+const VERSION = process.env.PICKCAT_UA_VERSION || '1.0.4';
 const UPDATE_BASE =
   'https://raw.githubusercontent.com/CodeManTeam/pickcat-web/master/dist/pickcat-mobile.user.js';
 

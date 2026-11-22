@@ -40,6 +40,13 @@
       }
     }
     if (!response.ok) {
+      if (response.status === 401) {
+        try {
+          window.dispatchEvent(new CustomEvent('pickcat:unauthorized', { detail: { path } }));
+        } catch {
+          /* ignore */
+        }
+      }
       const message =
         (data && (data.message || data.code)) || `${path} ${response.status}`;
       const error = new Error(message);
@@ -851,7 +858,7 @@ const BOARD_DESC = {
     /** 消息中心：官方通知接口（GET /notifications、PATCH /notifications、/notification-summary） */
     notifications: {
       async list({ types, cursor, limit = 20 } = {}) {
-        const res = await get('/notifications', { query: { type: types && types.length ? types : undefined, cursor, limit } });
+        const res = await get('/notifications', { type: types && types.length ? types : undefined, cursor, limit });
         const items = (res.items || []).map(toNotification);
         return { items, pageInfo: res.pageInfo || null };
       },
@@ -870,7 +877,7 @@ const BOARD_DESC = {
       },
 
       async likeGroups({ before, beforeId, limit = 20 } = {}) {
-        return get('/like-notification-groups', { query: { before, beforeKey: beforeId, limit } });
+        return get('/like-notification-groups', { before, beforeKey: beforeId, limit });
       },
     },
 

@@ -593,6 +593,7 @@
       (me ? `<img src="${esc(avatarOf(me))}" alt="" />` : ICONS.user) +
       `</a>` +
       `<a class="m-brand" href="#/home/recommended" aria-label="PICKCAT">${BRAND}</a>` +
+      `<a class="m-btn" href="/m" aria-label="手机版完整界面" title="手机版（收藏/设置/投币等）">${ICONS.phone}</a>` +
       `<button class="m-btn" type="button" data-theme-toggle aria-label="切换外观">${ICONS.theme}</button>`;
 
     const refresh = $('#refreshBtn');
