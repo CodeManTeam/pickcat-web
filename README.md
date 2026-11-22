@@ -12,6 +12,11 @@ Pickcat 原生观感，一行样式没重做），**只把数据层整体换成�
 > **线上部署 / 入口门禁**：见 [DEPLOY.md](DEPLOY.md)（`dangerous_pickdog.dao4.fun`，
 > 「您走错了」门禁页 + 逐字签署 + localStorage 免重复签署）。
 
+> **油猴脚本（在官方站用旧 UI）**：见 [userscript/README.md](userscript/README.md)。
+> 装好 Tampermonkey 后直接开
+> <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/main/dist/pickcat-mobile.user.js>
+> 安装，再打开 <https://pickcat.dao3.fun/> 就是手机版旧界面；右侧「官方」小挂耳可随时切回。
+
 ## 快速开始
 
 ```bash
