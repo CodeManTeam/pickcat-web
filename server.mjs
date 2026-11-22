@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PICKCAT 正式网页版 —— 本地服务
  *
  * 职责：
@@ -12,7 +12,7 @@
  */
 import http from 'node:http';
 import https from 'node:https';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, normalize, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -790,10 +790,76 @@ async function handleMossSso(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 匿名访客计数：浏览器在 localStorage 里生成随机 visitor id，每 30 分钟最多上报一次。
+// 只记 id / 路径 / 来源 / IP / UA / 国家，不记录账号信息；data/visits.jsonl 每行一条。
+// 统计：node scripts/visitors.mjs
+// ---------------------------------------------------------------------------
+const VISITS_FILE = join(HERE, 'data', 'visits.jsonl');
+
+function readSmallJson(req, limit = 4096) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(Object.assign(new Error('body too large'), { status: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {});
+      } catch {
+        reject(Object.assign(new Error('invalid json'), { status: 400 }));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+async function handleVisit(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { message: 'Method Not Allowed' });
+  let body = {};
+  try {
+    body = await readSmallJson(req);
+  } catch {
+    res.writeHead(204).end();
+    return;
+  }
+  const id = String(body.id || '').toLowerCase();
+  if (!/^[a-z0-9-]{8,64}$/.test(id)) {
+    res.writeHead(204).end();
+    return;
+  }
+  const ip = String(
+    req.headers['x-real-ip'] || req.headers['cf-connecting-ip'] || req.socket.remoteAddress || ''
+  ).replace(/^::ffff:/, '');
+  const record = {
+    ts: new Date().toISOString(),
+    id,
+    path: String(body.path || '').slice(0, 200),
+    ref: String(body.ref || '').slice(0, 300),
+    ip,
+    country: String(req.headers['cf-ipcountry'] || ''),
+    ua: String(req.headers['user-agent'] || '').slice(0, 300),
+  };
+  try {
+    await appendFile(VISITS_FILE, JSON.stringify(record) + '\n');
+  } catch (err) {
+    // 统计失败绝不能影响页面
+  }
+  res.writeHead(204, { 'Cache-Control': 'no-store' }).end();
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || HOST}`);
   try {
     if (url.pathname === '/__session') return await handleSession(req, res);
+    if (url.pathname === '/__visit') return await handleVisit(req, res);
     if (url.pathname === '/proxy/media') return await handleMediaProxy(req, res, url);
     if (url.pathname === '/moss/sso') return await handleMossSso(req, res);
     if (url.pathname === '/moss' || url.pathname.startsWith('/moss/')) return await handleMossProxy(req, res, url);

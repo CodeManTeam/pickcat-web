@@ -10,6 +10,7 @@
     "dev": "node server.mjs",
     "check": "node --check server.mjs && node --check web/app.js && node --check web/auth.js && node --check web/login.js && node --check web/api-official.js",
     "verify": "node scripts/verify.mjs",
+    "visitors": "node scripts/visitors.mjs",
     "test:moss": "node scripts/test-moss.mjs",
     "assets": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-assets.ps1",
     "gen:routes": "node scripts/gen-endpoints.mjs",

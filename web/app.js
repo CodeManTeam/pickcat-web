@@ -1,4 +1,4 @@
-﻿const ASSETS = {
+const ASSETS = {
   codeIsland: "public/assets/img_enter_code_island.png",
   elf: "public/assets/img_enter_elf.png",
   library: "public/assets/img_enter_library.png",
@@ -4099,4 +4099,14 @@ async function init() {
   });
 }
 
-init();
+if (window.__PICKCAT_GATE_LOCKED__) {
+  // 入口门禁（gate.js）未签署：先不启动 App，签署完成后由门禁调用。
+  let started = false;
+  window.__pickcatStartApp = () => {
+    if (started) return;
+    started = true;
+    init();
+  };
+} else {
+  init();
+}

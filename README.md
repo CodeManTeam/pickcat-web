@@ -1,4 +1,4 @@
-﻿# PICKCAT 正式网页版
+# PICKCAT 正式网页版
 
 **UI 直接用 Pickcat-Reborn 那一套**（`index.html` + `styles.css` + `app.js` + `public/assets`，手机端优先的
 Pickcat 原生观感，一行样式没重做），**只把数据层整体换成官方 API**：
@@ -8,6 +8,9 @@ Pickcat 原生观感，一行样式没重做），**只把数据层整体换成�
 - 数据：全部来自官方接口，**没有一条模拟数据**
 - 登录：官方 `POST /session` 必须过阿里云验证码，改为导入 `pickcat_session`（页面内直接粘贴）
 - 迁移映射：[docs/api-migration.md](docs/api-migration.md) · 路由清单：[docs/api-inventory.md](docs/api-inventory.md)
+
+> **线上部署 / 入口门禁**：见 [DEPLOY.md](DEPLOY.md)（`dangerous_pickdog.dao4.fun`，
+> 「您走错了」门禁页 + 逐字签署 + localStorage 免重复签署）。
 
 ## 快速开始
 
