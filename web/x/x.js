@@ -593,6 +593,7 @@
       (me ? `<img src="${esc(avatarOf(me))}" alt="" />` : ICONS.user) +
       `</a>` +
       `<a class="m-brand" href="#/home/recommended" aria-label="PICKCAT">${BRAND}</a>` +
+      `<button class="m-btn" type="button" data-compose aria-label="发帖">${ICONS.plus}</button>` +
       `<a class="m-btn" href="/m" aria-label="手机版完整界面" title="手机版（收藏/设置/投币等）">${ICONS.phone}</a>` +
       `<button class="m-btn" type="button" data-theme-toggle aria-label="切换外观">${ICONS.theme}</button>`;
 
@@ -875,7 +876,7 @@ function restoreRouteScroll(key) {
     const liked = Boolean(post.viewerState && post.viewerState.liked);
     const wrapCls = depth > 0 ? 'child' : 'reply';
     return (
-      `<article class="${wrapCls}" data-post="${esc(post.id)}">` +
+      `<article class="${wrapCls}" data-post="${esc(post.id)}" data-num="${esc(String(post.postNumber || 0))}">` +
       `<a href="#/u/${encodeURIComponent(author.id || '')}" aria-label="${esc(author.username || '')}">${avatarImg(
         author
       )}</a>` +
@@ -913,6 +914,10 @@ function restoreRouteScroll(key) {
         const tags = (topic.tags || []).filter(Boolean);
         const body = sanitizeRich(first.cookedHtml);
         const canLike = caps.canLike !== false;
+        const bookmarkId = (topic.viewerState && topic.viewerState.bookmarkId) || '';
+        const canDelete = Boolean(caps.canDelete);
+        const isQuestion = String(topic.kind || '').toUpperCase() === 'QUESTION';
+        const canAnswer = Boolean((topic.viewerCapabilities || {}).canSelectAnswer);
 
         host.innerHTML =
           `<article class="thread">` +
@@ -943,12 +948,90 @@ function restoreRouteScroll(key) {
             liked ? '1' : '0'
           }" data-count="${likeCount}" ${canLike ? '' : 'disabled'} style="${canLike ? '' : 'opacity:.5;cursor:not-allowed'}">` +
           `<span class="ico">${ICONS.heart}</span><span class="n">${num(likeCount)}</span></button>` +
+          `<button class="act bookmark${bookmarkId ? ' on' : ''}" type="button" data-bookmark="${esc(topic.id)}" data-bmid="${esc(bookmarkId)}" title="收藏"><span class="ico">${ICONS.bookmark}</span></button>` +
+          `<button class="act" type="button" data-report="${esc(first.id || '')}" title="举报"><span class="ico">${ICONS.more}</span></button>` +
+          (canDelete
+            ? `<button class="act danger" type="button" data-delete="${esc(first.id || '')}" title="删除">删除</button>`
+            : '') +
           `<button class="act share" type="button" data-share="${esc(topic.id)}" title="复制链接"><span class="ico">${ICONS.share}</span></button>` +
           `</div></div></article>` +
           `<div class="replies-head">回复 <span>${num(topic.replyCount)}</span></div>` +
+          `<form class="reply-form" data-reply-form>` +
+          `<textarea rows="3" maxlength="2000" placeholder="写回复…（提交后可能先进入审核）"></textarea>` +
+          `<div class="reply-form-row"><button class="btn-solid" type="submit">回复</button></div>` +
+          `</form>` +
           `<div id="replies"></div>`;
 
         const repliesHost = $('#replies', host);
+
+        $('[data-bookmark]', host)?.addEventListener('click', async (event) => {
+          if (!needLogin()) return;
+          const button = event.currentTarget;
+          const bmid = button.getAttribute('data-bmid') || '';
+          button.disabled = true;
+          try {
+            if (bmid) {
+              await api('/bookmarks/' + encodeURIComponent(bmid), { method: 'DELETE' });
+              button.setAttribute('data-bmid', '');
+              button.classList.remove('on');
+              toast('已取消收藏');
+            } else {
+              const result = await api('/bookmarks', {
+                method: 'POST',
+                body: { bookmarkableType: 'TOPIC', bookmarkableId: String(topicId) },
+              });
+              if (result && result.id) button.setAttribute('data-bmid', result.id);
+              button.classList.add('on');
+              toast('已收藏');
+            }
+          } catch (error) {
+            toast(error.message || '操作失败', 'error');
+          } finally {
+            button.disabled = false;
+          }
+        });
+
+        $('[data-report]', host)?.addEventListener('click', (event) => {
+          openReport(event.currentTarget.getAttribute('data-report'), 'POST');
+        });
+
+        $('[data-delete]', host)?.addEventListener('click', async (event) => {
+          if (!window.confirm('确定删除这条帖子？')) return;
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            await api('/posts/' + encodeURIComponent(button.getAttribute('data-delete')), { method: 'DELETE' });
+            toast('已删除');
+            location.hash = '#/home/recommended';
+          } catch (error) {
+            button.disabled = false;
+            toast(error.message || '删除失败', 'error');
+          }
+        });
+
+        $('[data-reply-form]', host)?.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          if (!needLogin()) return;
+          const form = event.currentTarget;
+          const textarea = form.querySelector('textarea');
+          const content = textarea.value.trim();
+          if (!content) return;
+          const button = form.querySelector('button[type=submit]');
+          button.disabled = true;
+          button.textContent = '发送中…';
+          try {
+            const result = await api('/posts', { method: 'POST', body: { topicId, markdown: content } });
+            const status = String((result && result.status) || '').toUpperCase();
+            textarea.value = '';
+            toast(status.includes('PENDING') ? '已提交审核，通过后会出现在回复里' : '回复成功');
+            route();
+          } catch (error) {
+            toast(error.message || '回复失败', 'error');
+          } finally {
+            button.disabled = false;
+            button.textContent = '回复';
+          }
+        });
         return api('/topics/' + encodeURIComponent(topicId) + '/posts', { query: { limit: 30 } }).then((page) => {
           if (!repliesHost.isConnected) return;
           const seen = new Set();
@@ -956,6 +1039,33 @@ function restoreRouteScroll(key) {
             const items = (payload.items || []).filter((p) => p && p.postNumber !== 1 && !p.deleted && !seen.has(p.id));
             items.forEach((p) => seen.add(p.id));
             if (items.length) repliesHost.insertAdjacentHTML('beforeend', items.map((p) => replyNode(p, 0)).join(''));
+            if (items.length && isQuestion && canAnswer) {
+              $$('.reply[data-num], .child[data-num]', repliesHost).forEach((node) => {
+                if (node.querySelector('[data-answer]')) return;
+                const num = Number(node.getAttribute('data-num')) || 0;
+                if (!num || num === 1) return;
+                const button = document.createElement('button');
+                button.className = 'act';
+                button.type = 'button';
+                button.setAttribute('data-answer', String(num));
+                button.textContent = '设为答案';
+                button.addEventListener('click', async () => {
+                  button.disabled = true;
+                  try {
+                    await api('/questions/' + encodeURIComponent(topicId) + '/selected-answer', {
+                      method: 'PUT',
+                      body: { answerPostNumber: num },
+                    });
+                    toast('已设为答案');
+                    button.textContent = '已设为答案';
+                  } catch (error) {
+                    button.disabled = false;
+                    toast(error.message || '设置失败', 'error');
+                  }
+                });
+                node.querySelector('.reply-acts')?.append(button);
+              });
+            }
             return items.length;
           };
           if (!addPage(page)) {
@@ -1026,7 +1136,11 @@ function restoreRouteScroll(key) {
           `<span class="profile-avatar"><img src="${esc(avatarOf(user))}" alt="${esc(user.username || '')}" /></span>` +
           `<div class="profile-actions">` +
           (isMe
-            ? `<button class="btn-ghost" type="button" data-logout>${ICONS.logout}退出登录</button>`
+            ? `<button class="btn-ghost" type="button" data-compose>${ICONS.plus}发帖</button>` +
+              `<a class="btn-ghost" href="#/saved">收藏</a>` +
+              `<a class="btn-ghost" href="#/notifications">通知</a>` +
+              `<button class="btn-ghost" type="button" data-settings>设置</button>` +
+              `<button class="btn-ghost" type="button" data-logout>${ICONS.logout}退出登录</button>`
             : `<button class="btn-solid js-follow${following ? ' following' : ''}" type="button" data-follow="${esc(
                 user.id
               )}" data-following="${following ? '1' : '0'}">${following ? '已关注' : ICONS.plus + '关注'}</button>`) +
@@ -1084,6 +1198,334 @@ function restoreRouteScroll(key) {
     );
   }
 
+  /* ================================================================== 写操作 */
+
+  const REPORT_REASONS = [
+    ['SPAM', '垃圾广告 / 刷屏'],
+    ['HARASSMENT', '骚扰或人身攻击'],
+    ['PRIVACY', '泄露个人隐私'],
+    ['OFF_TOPIC', '与板块无关'],
+    ['OTHER', '其他'],
+  ];
+
+  function needLogin() {
+    if (state.viewer) return true;
+    openLogin();
+    return false;
+  }
+
+  function showModal(inner, onMount) {
+    const back = document.createElement('div');
+    back.className = 'modal-back';
+    back.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${inner}</div>`;
+    document.body.append(back);
+    const close = () => back.remove();
+    back.addEventListener('click', (event) => {
+      if (event.target === back || event.target.closest('[data-close]')) close();
+    });
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        close();
+        document.removeEventListener('keydown', onKey);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    if (onMount) onMount(back, close);
+    return close;
+  }
+
+  /** 发新帖：POST /posts（202 = 进审核队列） */
+  async function openCompose() {
+    if (!needLogin()) return;
+    let boards = [];
+    try {
+      const page = await api('/topics', { query: { limit: 50, sort: 'latest' } });
+      const seen = new Set();
+      (page.items || []).forEach((topic) =>
+        (topic.tags || []).forEach((tag) => {
+          if (!tag || !tag.id || seen.has(tag.id)) return;
+          seen.add(tag.id);
+          boards.push(tag);
+        })
+      );
+    } catch {}
+    const options = boards.map((board) => `<option value="${esc(board.id)}">${esc(board.name)}</option>`).join('');
+    showModal(
+      `<h2>发新帖</h2>` +
+        `<label class="form-label">板块</label><select id="composeBoard">${options}</select>` +
+        `<label class="form-label">标题</label><input id="composeTitle" maxlength="120" placeholder="标题" />` +
+        `<label class="form-label">正文</label><textarea id="composeBody" rows="6" placeholder="写点什么…"></textarea>` +
+        `<div class="modal-row"><button class="btn-ghost" type="button" data-close>取消</button>` +
+        `<button class="btn-solid" type="button" data-send>发布</button></div>`,
+      (back, close) => {
+        $('[data-send]', back).addEventListener('click', async (event) => {
+          const button = event.currentTarget;
+          const title = $('#composeTitle', back).value.trim();
+          const body = $('#composeBody', back).value.trim();
+          const tagId = $('#composeBoard', back).value;
+          if (!title || !body) return toast('标题和正文都要写', 'error');
+          button.disabled = true;
+          button.textContent = '发布中…';
+          try {
+            const result = await api('/posts', {
+              method: 'POST',
+              body: { title, markdown: body, ...(tagId ? { tagIds: [tagId] } : {}) },
+            });
+            close();
+            const status = String((result && result.status) || '').toUpperCase();
+            toast(status.includes('PENDING') ? '已提交审核，通过后会出现在时间线' : '已发布');
+            route();
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = '发布';
+            toast(error.message || '发布失败', 'error');
+          }
+        });
+      }
+    );
+  }
+
+  /** 账号设置：简介 + 官方头像预设 */
+  async function openSettings() {
+    if (!needLogin()) return;
+    const me = state.viewer || {};
+    let presets = [];
+    try {
+      presets = ((await api('/avatar-presets')).items || []).slice(0, 12);
+    } catch {}
+    showModal(
+      `<h2>账号设置</h2>` +
+        `<label class="form-label">个人简介</label>` +
+        `<textarea id="setBio" rows="3" maxlength="200" placeholder="介绍一下自己">${esc(me.bio || '')}</textarea>` +
+        `<button class="btn-solid" type="button" data-save-bio style="width:100%;margin:10px 0 16px">保存简介</button>` +
+        `<label class="form-label">头像（官方预设）</label>` +
+        `<div class="avatar-row">${presets
+          .map((preset) => `<button class="avatar-pick" type="button" data-avatar="${preset.id}"><img src="${esc(preset.url)}" alt="" loading="lazy" /></button>`)
+          .join('')}</div>` +
+        `<div class="modal-row"><button class="btn-ghost" type="button" data-close>关闭</button></div>`,
+      (back, close) => {
+        $('[data-save-bio]', back).addEventListener('click', async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          button.textContent = '保存中…';
+          try {
+            const bio = $('#setBio', back).value.trim();
+            await api('/users/' + encodeURIComponent(me.id), { method: 'PATCH', body: { bio } });
+            state.viewer = { ...me, bio };
+            try {
+              localStorage.setItem(PROFILE_KEY, JSON.stringify(state.viewer));
+            } catch {}
+            close();
+            toast('简介已保存');
+            route();
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = '保存简介';
+            toast(error.message || '保存失败', 'error');
+          }
+        });
+        $$('[data-avatar]', back).forEach((button) =>
+          button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+              await api('/users/' + encodeURIComponent(me.id) + '/avatar', {
+                method: 'PUT',
+                body: { type: 'PRESET', presetId: Number(button.dataset.avatar) },
+              });
+              close();
+              const result = await window.PickcatAuth.status().catch(() => null);
+              if (result && result.connected) state.viewer = result.user;
+              toast('头像已更新');
+              route();
+            } catch (error) {
+              button.disabled = false;
+              toast(error.message || '头像更新失败', 'error');
+            }
+          })
+        );
+      }
+    );
+  }
+
+  /** 举报 */
+  function openReport(postId, targetKind) {
+    if (!needLogin()) return;
+    showModal(
+      `<h2>举报内容</h2><div class="reason-list">${REPORT_REASONS.map(
+        ([code, label]) => `<button class="reason" type="button" data-reason="${code}">${esc(label)}</button>`
+      ).join('')}</div><div class="modal-row"><button class="btn-ghost" type="button" data-close>取消</button></div>`,
+      (back, close) => {
+        $$('[data-reason]', back).forEach((button) =>
+          button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+              await api('/posts/' + encodeURIComponent(postId) + '/reports', {
+                method: 'POST',
+                body: { targetKind: targetKind || 'POST', reasonCode: button.dataset.reason },
+              });
+              close();
+              toast('已提交举报，感谢反馈');
+            } catch (error) {
+              button.disabled = false;
+              toast(error.message || '举报失败', 'error');
+            }
+          })
+        );
+      }
+    );
+  }
+
+  /** 我的收藏：收藏的作品 + 收藏的帖子 */
+  function savedView() {
+    const main = resetMain(
+      topbar({ title: '我的收藏', back: '#/me' }) + `<div id="saved"><div style="padding:0 0 16px">${skeleton(2)}</div></div>`
+    );
+    const host = $('#saved', main);
+    if (!state.viewer) {
+      host.innerHTML = emptyState({
+        title: '还没有连接账号',
+        text: '登录后可以查看收藏的作品和帖子。',
+        action: loginAction('连接账号'),
+      });
+      return;
+    }
+    Promise.all([
+      api('/work-favorites', { query: { limit: 20 } }).catch(() => ({ items: [] })),
+      api('/bookmark-folders').catch(() => ({ items: [] })),
+    ])
+      .then(async ([favs, folders]) => {
+        const folder = (folders.items || [])[0];
+        const marks = folder
+          ? await api('/bookmark-folders/' + encodeURIComponent(folder.id) + '/items', { query: { limit: 40 } }).catch(() => ({ items: [] }))
+          : { items: [] };
+        if (!host.isConnected) return;
+        const works = favs.items || [];
+        const topics = (marks.items || []).filter((item) => item && item.type === 'TOPIC' && item.topic);
+        host.innerHTML =
+          `<section class="saved-block"><h2 class="saved-head">收藏的作品 <span>${works.length}</span></h2>` +
+          (works.length
+            ? works
+                .map(
+                  (work) =>
+                    `<a class="saved-item" href="https://pickcat.dao3.fun/works/${encodeURIComponent(work.id)}" target="_blank" rel="noopener">` +
+                    `<span class="saved-cover">${work.screenshotCoverUrl ? `<img src="${esc(mediaUrl(work.screenshotCoverUrl))}" alt="" loading="lazy" />` : ''}</span>` +
+                    `<span class="saved-main"><b>${esc(work.workName || '未命名作品')}</b><span>${esc(
+                      (work.author && work.author.username) || ''
+                    )} · ${num(work.viewCount)} 浏览</span></span></a>`
+                )
+                .join('')
+            : `<p class="saved-empty">暂无</p>`) +
+          `</section>` +
+          `<section class="saved-block"><h2 class="saved-head">收藏的帖子 <span>${topics.length}</span></h2>` +
+          (topics.length
+            ? topics
+                .map(
+                  (item) =>
+                    `<div class="saved-item"><a class="saved-main" href="#/t/${encodeURIComponent(item.topic.id)}"><b>${esc(
+                      item.topic.title || '无标题'
+                    )}</b><span>${esc((item.topic.author && item.topic.author.username) || '')}</span></a>` +
+                    `<button class="btn-ghost" type="button" data-unbookmark="${esc(item.bookmarkId)}">取消</button></div>`
+                )
+                .join('')
+            : `<p class="saved-empty">暂无</p>`) +
+          `</section>`;
+        $$('[data-unbookmark]', host).forEach((button) =>
+          button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+              await api('/bookmarks/' + encodeURIComponent(button.dataset.unbookmark), { method: 'DELETE' });
+              button.closest('.saved-item')?.remove();
+              toast('已取消收藏');
+            } catch (error) {
+              button.disabled = false;
+              toast(error.message || '取消失败', 'error');
+            }
+          })
+        );
+      })
+      .catch((error) => {
+        if (host.isConnected)
+          host.innerHTML = emptyState({ title: '收藏加载失败', text: esc(error.message || '网络异常') });
+      });
+  }
+
+  /** 通知列表 + 全部已读 */
+  function notificationsView() {
+    const main = resetMain(
+      topbar({
+        title: '通知',
+        back: '#/me',
+        right: `<button class="btn-ghost" type="button" data-readall style="margin-left:auto">全部已读</button>`,
+      }) + `<div id="notifs"><div style="padding:0 0 16px">${skeleton(2)}</div></div>`
+    );
+    const host = $('#notifs', main);
+    if (!state.viewer) {
+      host.innerHTML = emptyState({
+        title: '还没有连接账号',
+        text: '登录后可以查看回复、点赞和关注通知。',
+        action: loginAction('连接账号'),
+      });
+      return;
+    }
+    const TYPE_LABEL = {
+      USER_FOLLOWED: '关注了你',
+      POST_LIKED: '赞了你的帖子',
+      REPLY_CREATED: '回复了你的帖子',
+      USER_MENTIONED: '在帖子里提到了你',
+      WORK_LIKED: '赞了你的作品',
+      WORK_COMMENT_CREATED: '评论了你的作品',
+      WORK_COMMENT_LIKED: '赞了你的作品评论',
+      WORK_COMMENT_REPLY_CREATED: '回复了你的作品评论',
+      WORK_COMMENT_MENTIONED: '在作品评论里提到了你',
+      LEVEL_CERTIFICATION: '等级认证',
+      MANAGEMENT_ACTION: '社区管理操作',
+    };
+    const load = async () => {
+      try {
+        const res = await api('/notifications', { query: { limit: 30 } });
+        if (!host.isConnected) return;
+        const items = res.items || [];
+        if (!items.length) {
+          host.innerHTML = `<div class="empty"><p>还没有通知。</p></div>`;
+          return;
+        }
+        host.innerHTML = items
+          .map((item) => {
+            const actor = (item.details && item.details.actor) || null;
+            const label = TYPE_LABEL[item.type] || item.type;
+            return (
+              `<article class="notif${item.readAt ? '' : ' unread'}">` +
+              (actor
+                ? `<a href="#/u/${encodeURIComponent(actor.id || '')}" aria-label="${esc(actor.username || '')}">${avatarImg(actor, 'notif-avatar')}</a>`
+                : `<span class="notif-avatar">${ICONS.bell || ICONS.user}</span>`) +
+              `<div class="notif-main"><div class="notif-text">${
+                actor ? `<b>${esc(actor.username || '用户')}</b> ` : ''
+              }${esc(label)}</div><span class="notif-time">${esc(relTime(item.createdAt))}</span></div>` +
+              `</article>`
+            );
+          })
+          .join('');
+      } catch (error) {
+        if (host.isConnected)
+          host.innerHTML = emptyState({ title: '通知加载失败', text: esc(error.message || '网络异常'), action: loginAction('重新连接') });
+      }
+    };
+    load();
+    $('[data-readall]', main)?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await api('/notifications', { method: 'PATCH', body: { read: true } });
+        toast('已全部标记为已读');
+        load();
+      } catch (error) {
+        toast(error.message || '操作失败', 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
   /* ----------------------------------------------------------------- 路由 */
 
   function parseHash() {
@@ -1121,6 +1563,8 @@ function restoreRouteScroll(key) {
     else if (head === 't') threadView(segs[1] || '');
     else if (head === 'u') profileView(segs[1] || '');
     else if (head === 'me') meView();
+    else if (head === 'saved') savedView();
+    else if (head === 'notifications') notificationsView();
     else {
       location.replace('#/home/recommended');
       return;
@@ -1303,6 +1747,20 @@ function restoreRouteScroll(key) {
       return;
     }
     if (!event.target.closest('.menu')) closeMenu();
+
+    const composeBtn = event.target.closest('[data-compose]');
+    if (composeBtn) {
+      event.preventDefault();
+      openCompose();
+      return;
+    }
+
+    const settingsBtn = event.target.closest('[data-settings]');
+    if (settingsBtn) {
+      event.preventDefault();
+      openSettings();
+      return;
+    }
 
     const login = event.target.closest('.js-login');
     if (login) {
