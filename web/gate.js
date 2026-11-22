@@ -121,6 +121,28 @@
           <span class="pc-gate__official-arrow" aria-hidden="true">→</span>
         </a>
 
+        <section class="pc-gate__cosmos" aria-labelledby="pc-gate-cosmos-title">
+          <div class="pc-gate__cosmos-head">
+            <span class="pc-gate__cosmos-badge" aria-hidden="true">☄</span>
+            <div>
+              <h2 class="pc-gate__cosmos-title" id="pc-gate-cosmos-title">宇宙安全声明</h2>
+              <p class="pc-gate__cosmos-sub">UNIVERSAL SAFETY NOTICE · 适用于可观测宇宙及其所有平行分支</p>
+            </div>
+          </div>
+          <p class="pc-gate__cosmos-lead">本站是第三方非官方测试站，随时关闭；登录态只存在你自己的浏览器里，不做任何安全保护。</p>
+          <details class="pc-gate__cosmos-more">
+            <summary>展开完整声明</summary>
+            <ol>
+              <li>本声明自发出之时起，在可观测宇宙（直径约 930 亿光年）以及所有可能的平行宇宙分支内生效，适用于一切访问者，无论碳基、硅基、等离子态或尚未被定义的形态。</li>
+              <li>本站与 PICKCAT / 编程猫官方不存在任何隶属、授权、赞助或背书关系；内容随时可能被关闭、清空或篡改，恕不另行通知，亦不保证任何信息的完整性、时效性与可用性。</li>
+              <li>你的账号凭据与登录态仅保存在本机浏览器的 Cookie / localStorage 中，本站不上传、不加密、不做隔离，任何同源脚本均可读取；请勿使用主账号或重要密码登录。</li>
+              <li>因访问、使用或无法使用本站而产生的账号泄露、数据丢失、设备损坏、时间膨胀、量子退相干、平行宇宙分叉及任何其他直接或间接损失，本站作者与维护者均不承担任何责任。</li>
+              <li>若你位于地球之外：请遵守所在星系的本地法律法规，并自行承担超光速通信带来的延迟与因果顺序问题。</li>
+              <li>继续访问即视为你已完整阅读、理解并接受上述全部条款；不接受者请立即关闭本页并前往官方站。</li>
+            </ol>
+          </details>
+        </section>
+
         <p class="pc-gate__sign-label">
           必须签署才能进入
           <span>逐字输入下方这句话</span>

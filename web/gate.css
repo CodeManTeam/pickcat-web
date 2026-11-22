@@ -159,6 +159,86 @@ html.gate-locked .phone-shell {
   color: #7fb0f0;
 }
 
+/* ---- 宇宙安全声明 ---- */
+.pc-gate__cosmos {
+  margin: 0 0 18px;
+  padding: 13px 14px;
+  border: 1px dashed #33465f;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 140% at 18% 0%, rgba(88, 120, 255, 0.16), transparent 62%),
+    #0d141d;
+}
+
+.pc-gate__cosmos-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.pc-gate__cosmos-badge {
+  font-size: 15px;
+  line-height: 1.35;
+  color: #9fc2ff;
+}
+
+.pc-gate__cosmos-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #dbe6ff;
+}
+
+.pc-gate__cosmos-sub {
+  margin: 2px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: #6f84a1;
+}
+
+.pc-gate__cosmos-lead {
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #9fb0c6;
+}
+
+.pc-gate__cosmos-more {
+  margin-top: 7px;
+}
+
+.pc-gate__cosmos-more summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #7fb0f0;
+  list-style: none;
+}
+
+.pc-gate__cosmos-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.pc-gate__cosmos-more summary::before {
+  content: "▸ ";
+}
+
+.pc-gate__cosmos-more[open] summary::before {
+  content: "▾ ";
+}
+
+.pc-gate__cosmos-more ol {
+  margin: 8px 0 0;
+  padding-left: 17px;
+  font-size: 11.8px;
+  line-height: 1.72;
+  color: #8ea0b8;
+}
+
+.pc-gate__cosmos-more li + li {
+  margin-top: 6px;
+}
+
 .pc-gate__sign-label {
   display: flex;
   align-items: baseline;
