@@ -2329,7 +2329,7 @@ function handleMineAction(action) {
       navigateLocal("mine");
       break;
     case "favorites":
-      navigateLocal("mine");
+      openFavoritesSheet();
       break;
     case "pick":
       navigateLocal("mine");
@@ -2380,6 +2380,140 @@ function statusToast(text) {
     node.classList.remove("visible");
     setTimeout(() => node.remove(), 240);
   }, 1800);
+}
+
+/* ---------------------------------------------------------------------------
+ * 通用弹层：我的收藏 / 举报
+ * ------------------------------------------------------------------------- */
+const REPORT_REASONS = [
+  ["SPAM", "垃圾广告 / 刷屏"],
+  ["HARASSMENT", "骚扰或人身攻击"],
+  ["PRIVACY", "泄露个人隐私"],
+  ["OFF_TOPIC", "与板块无关"],
+  ["OTHER", "其他"]
+];
+
+function openModalSheet(title, render) {
+  const wrap = document.createElement("div");
+  wrap.className = "mine-menu-sheet";
+  wrap.innerHTML = `
+    <button class="sheet-backdrop" type="button" aria-label="关闭"></button>
+    <div class="sheet-panel" style="min-height:auto;max-height:78vh;overflow:auto;padding:18px 20px calc(26px + env(safe-area-inset-bottom));">
+      <button class="sheet-close" type="button" data-sheet-close aria-label="关闭">×</button>
+      <div class="sheet-section">
+        <h2 style="margin:0 0 14px;">${escapeHtml(title)}</h2>
+        <div data-sheet-body><div class="loading-card is-loading">读取中…</div></div>
+      </div>
+    </div>`;
+  const close = () => wrap.remove();
+  wrap.querySelector("[data-sheet-close]").addEventListener("click", close);
+  wrap.querySelector(".sheet-backdrop").addEventListener("click", close);
+  document.body.appendChild(wrap);
+  Promise.resolve(render(wrap.querySelector("[data-sheet-body]"), close)).catch((error) => {
+    const body = wrap.querySelector("[data-sheet-body]");
+    if (body) body.innerHTML = `<p class="favorites-empty">${escapeHtml(error.message || "读取失败")}</p>`;
+  });
+  return close;
+}
+
+/** 我的收藏：收藏的作品（/work-favorites）+ 收藏的帖子（默认收藏夹） */
+async function openFavoritesSheet() {
+  if (!state.auth?.token) {
+    statusToast("请先登录");
+    navigateLocal("login");
+    return;
+  }
+  openModalSheet("我的收藏", async (body, close) => {
+    const [favs, folders] = await Promise.all([
+      api.favoriteWorks(24).catch(() => ({ items: [] })),
+      api.bookmarkFolders().catch(() => ({ items: [] }))
+    ]);
+    const folder = (folders.items || [])[0];
+    const bookmarks = folder
+      ? await api.bookmarkFolderItems(folder.id, 40).catch(() => ({ items: [] }))
+      : { items: [] };
+    const topicItems = (bookmarks.items || []).filter((item) => item && item.type === "TOPIC" && item.topic);
+
+    body.innerHTML = `
+      <h3 class="favorites-head">收藏的作品（${favs.items.length}）</h3>
+      <div class="favorites-works"></div>
+      <h3 class="favorites-head">收藏的帖子（${topicItems.length}）</h3>
+      <div class="favorites-topics"></div>
+      ${favs.items.length || topicItems.length ? "" : '<p class="favorites-empty">还没有收藏任何内容</p>'}
+    `;
+
+    const worksHost = body.querySelector(".favorites-works");
+    worksHost.replaceChildren(...favs.items.map((work) => createWorkCard(work)));
+    if (!favs.items.length) worksHost.innerHTML = '<p class="favorites-empty">暂无</p>';
+
+    const topicsHost = body.querySelector(".favorites-topics");
+    topicsHost.replaceChildren(
+      ...topicItems.map((item) => {
+        const topic = item.topic;
+        const row = document.createElement("article");
+        row.className = "work-list-card";
+        row.innerHTML = `
+          <div>
+            <h3>${escapeHtml(topic.title || "无标题")}</h3>
+            <p>${escapeHtml(topic.author?.username || "")}</p>
+            <span>${compactNumber(topic.viewCount)} 浏览 · ${compactNumber(topic.replyCount)} 回帖</span>
+          </div>
+          <button class="text-btn" type="button" data-unbookmark>取消收藏</button>
+        `;
+        row.addEventListener("click", (event) => {
+          if (event.target.closest("[data-unbookmark]")) return;
+          close();
+          openPost(topic.id);
+        });
+        row.querySelector("[data-unbookmark]").addEventListener("click", async (event) => {
+          event.stopPropagation();
+          const btn = event.currentTarget;
+          btn.disabled = true;
+          try {
+            await api.removeBookmark(item.bookmarkId);
+            row.remove();
+            statusToast("已取消收藏");
+          } catch (error) {
+            btn.disabled = false;
+            statusToast(error.message || "取消失败");
+          }
+        });
+        return row;
+      })
+    );
+    if (!topicItems.length) topicsHost.innerHTML = '<p class="favorites-empty">暂无</p>';
+  });
+}
+
+/** 举报弹层 */
+function openReportSheet({ postId, targetKind = "POST", title = "" }) {
+  if (!state.auth?.token) {
+    statusToast("请先登录");
+    navigateLocal("login");
+    return;
+  }
+  openModalSheet("举报内容", (body, close) => {
+    body.innerHTML = `${title ? `<p class="favorites-empty">${escapeHtml(title)}</p>` : ""}<div class="report-list"></div>`;
+    const host = body.querySelector(".report-list");
+    REPORT_REASONS.forEach(([code, label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "report-item";
+      button.textContent = label;
+      button.addEventListener("click", async () => {
+        [...host.children].forEach((item) => (item.disabled = true));
+        try {
+          await api.reportPost({ postId, targetKind, reasonCode: code });
+          statusToast("已提交举报，感谢反馈");
+          close();
+        } catch (error) {
+          [...host.children].forEach((item) => (item.disabled = false));
+          statusToast(error.message || "举报失败");
+        }
+      });
+      host.appendChild(button);
+    });
+  });
 }
 
 function choosePublishType(type) {
@@ -2571,6 +2705,8 @@ async function renderPostDetail(id) {
           <img class="action-img" src="${ASSETS.pick}" alt="" />
           <span data-detail-bookmark-text>${detail.bookmark_id ? "已收藏" : "收藏"}</span>
         </button>
+        <button class="action-btn" type="button" data-detail-report><span>举报</span></button>
+        ${detail.can_delete ? `<button class="action-btn" type="button" data-detail-delete><span style="color:#ff4d4f">删除</span></button>` : ""}
       </div>
       <div class="detail-content">${sanitizeHtml(detail.content)}</div>
       <section class="detail-replies">
@@ -2648,8 +2784,25 @@ async function renderPostDetail(id) {
       }
     });
 
-    bindDetailReplyEvents(id);
-    await loadPostReplies(id);
+    $("[data-detail-report]", root)?.addEventListener("click", () => {
+      openReportSheet({ postId: detail.id, targetKind: "POST", title: detail.title });
+    });
+
+    $("[data-detail-delete]", root)?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (!window.confirm("确定删除这条帖子？")) return;
+      button.disabled = true;
+      try {
+        await api.deletePost(detail.first_post_id || detail.id);
+        statusToast("已删除");
+        navigateLocal("home");
+      } catch (error) {
+        button.disabled = false;
+        statusToast(error.message || "删除失败");
+      }
+    });
+
+    bindDetailReplyEvents(id);    await loadPostReplies(id);
   } catch (error) {
     root.replaceChildren(errorCard(`帖子读取失败：${error.message}`, "帖子读取失败"));
   }
@@ -2808,8 +2961,12 @@ function bindDetailReplyEvents(postId) {
     button.disabled = true;
     button.textContent = "发送中...";
     try {
-      await api.createPostReply(postId, `<p>${escapeHtml(content)}</p>`);
+      const result = await api.createPostReply(postId, `<p>${escapeHtml(content)}</p>`);
       input.value = "";
+      const status = String((result && result.status) || "").toUpperCase();
+      if (status.includes("PENDING") || status.includes("REVIEW")) {
+        statusToast("已提交审核，通过后会出现在评论区");
+      }
       await loadPostReplies(postId);
     } catch (error) {
       const list = $("[data-reply-list]");

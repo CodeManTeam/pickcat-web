@@ -3911,3 +3911,53 @@ body.show-back-btn .user-reader > *:first-child {
   color: inherit;
   cursor: pointer;
 }
+/* ---------------- 我的收藏 / 举报弹层 ---------------- */
+.favorites-head {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.favorites-head:first-child {
+  margin-top: 0;
+}
+
+.favorites-empty {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.work-list-card .text-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-item {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-item:active {
+  background: var(--blue-weak);
+}
+
+.report-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -506,9 +506,14 @@ const BOARD_DESC = {
         n_comments: t.replyCount || 0,
         // 写操作需要：点赞挂在首楼 post 上，收藏挂在 topic 上
         first_post_id: first.id ? String(first.id) : '',
+        first_post_number: first.postNumber || 1,
         n_likes: first.likeCount || 0,
         liked: Boolean(firstViewer.liked),
         bookmark_id: viewerState.bookmarkId || null,
+        kind: t.kind || 'DISCUSSION',
+        can_delete: Boolean((t.viewerCapabilities || {}).canDelete || (first.viewerCapabilities || {}).canDelete),
+        can_report: Boolean((t.viewerCapabilities || {}).canReport || (first.viewerCapabilities || {}).canReport),
+        can_select_answer: Boolean((t.viewerCapabilities || {}).canSelectAnswer),
       };
     },
 
@@ -572,6 +577,64 @@ const BOARD_DESC = {
     async topicBookmarkId(topicId) {
       const t = await get(`/topics/${encodeURIComponent(topicId)}`);
       return (t.viewerState && t.viewerState.bookmarkId) || null;
+    },
+
+    // ---- 收藏（作品 / 帖子 / 收藏夹）-------------------------------------
+    async favoriteWorks(limit = 20) {
+      const res = await get('/work-favorites', { limit });
+      return { items: (res.items || []).map(toFeedWork), pageInfo: res.pageInfo || null };
+    },
+
+    async bookmarkFolders() {
+      const res = await get('/bookmark-folders');
+      return res;
+    },
+
+    async bookmarkFolderItems(folderId, limit = 50) {
+      return get(`/bookmark-folders/${encodeURIComponent(folderId)}/items`, { limit });
+    },
+
+    // ---- 举报 -------------------------------------------------------------
+    async reportPost({ postId, targetKind = 'POST', reasonCode, detail = '' }) {
+      const body = { targetKind, reasonCode };
+      if (detail) body.detail = detail;
+      return request(`/posts/${encodeURIComponent(postId)}/reports`, { method: 'POST', body });
+    },
+
+    // ---- 自己的内容：删除 / 置顶 ------------------------------------------
+    async deletePost(postId) {
+      return request(`/posts/${encodeURIComponent(postId)}`, { method: 'DELETE' });
+    },
+
+    async pinPost(postId, pinned = true) {
+      const path = `/posts/${encodeURIComponent(postId)}/pin`;
+      return pinned ? request(path, { method: 'PUT' }) : request(path, { method: 'DELETE' });
+    },
+
+    // ---- 问答：选为答案 ---------------------------------------------------
+    async selectAnswer(topicId, postNumber) {
+      return request(`/questions/${encodeURIComponent(topicId)}/selected-answer`, {
+        method: 'PUT',
+        body: { answerPostNumber: Number(postNumber) },
+      });
+    },
+
+    // ---- 作品：统计 / 投币 / 精选 -----------------------------------------
+    async workStats(workId) {
+      return get(`/works/${encodeURIComponent(workId)}/stats`);
+    },
+
+    async coinWork(workId, amount = 1) {
+      return request(`/works/${encodeURIComponent(workId)}/coins`, { method: 'PUT', body: { amount: Number(amount) } });
+    },
+
+    async featuredWorks() {
+      const res = await get('/featured-works');
+      return { items: (res.items || []).map(toFeedWork) };
+    },
+
+    async featuredTopics(userId) {
+      return get(`/users/${encodeURIComponent(userId)}/featured-topics`);
     },
 
     async publishPost(boardId, title, content) {

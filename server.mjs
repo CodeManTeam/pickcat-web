@@ -69,9 +69,13 @@ function upstreamRaw(path, { method = 'GET', headers = {}, body = null, timeout 
       ...(origin ? { Origin: origin, Referer: origin + '/' } : {}),
     };
     // 登录态优先级：调用方显式传入 > 浏览器 Cookie > 服务端兜底（环境变量）
+    // 注意：cookie 可能已经是完整 Cookie 串（pickcat_session=xxx; other=y），也可能只是 session 值
     if (!finalHeaders.Cookie) {
-      const sessionCookie = cookie || sessionState.cookie;
-      if (sessionCookie) finalHeaders.Cookie = `${COOKIE_NAME}=${sessionCookie}`;
+      const rawCookie = cookie || sessionState.cookie;
+      if (rawCookie) {
+        const text = String(rawCookie);
+        finalHeaders.Cookie = text.includes('=') ? text : `${COOKIE_NAME}=${text}`;
+      }
     }
     const req = https.request(
       url,
