@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PICKCAT 正式网页版 —— 官方 API 适配层
  *
  * 作用：把 Pickcat-Reborn 的数据层（原本指向编程猫旧社区 `/web/forums/*`、
@@ -389,6 +389,7 @@ const BOARD_DESC = {
   const boardCursors = new Map();
   const replyTopic = new Map(); // postId -> topicId
   const commentNumbers = new Map(); // commentId -> commentNumber
+  const tagIdBySlug = new Map(); // 板块 slug -> 官方 tag id（发帖要传 tagIds）
   const workIdByFeedId = new Map();
   let discoverCache = { items: [], cursor: undefined, done: false };
 
@@ -435,6 +436,7 @@ const BOARD_DESC = {
       (page.items || []).forEach((t) => {
         (t.tags || []).forEach((tag) => {
           if (tag && tag.slug && !map.has(tag.slug)) map.set(tag.slug, { id: tag.slug, name: tag.name || tag.slug });
+          if (tag && tag.slug && tag.id) tagIdBySlug.set(tag.slug, tag.id);
         });
       });
       // 官方 tag 里存在同名不同 slug 的板块，按名字去重，避免重复卡片
@@ -486,6 +488,8 @@ const BOARD_DESC = {
       const author = t.author || {};
       const tag = (t.tags && t.tags[0]) || {};
       const first = t.firstPost || {};
+      const viewerState = t.viewerState || {};
+      const firstViewer = first.viewerState || {};
       return {
         id: String(t.id),
         title: t.title || '无标题',
@@ -500,6 +504,11 @@ const BOARD_DESC = {
         n_views: t.viewCount || 0,
         n_replies: t.replyCount || 0,
         n_comments: t.replyCount || 0,
+        // 写操作需要：点赞挂在首楼 post 上，收藏挂在 topic 上
+        first_post_id: first.id ? String(first.id) : '',
+        n_likes: first.likeCount || 0,
+        liked: Boolean(firstViewer.liked),
+        bookmark_id: viewerState.bookmarkId || null,
       };
     },
 
@@ -541,13 +550,44 @@ const BOARD_DESC = {
       return liked ? request(path, { method: 'PUT' }) : request(path, { method: 'DELETE' });
     },
 
+    /** 话题（帖子）点赞：官方把我们叫「post」，首楼 id 才是点赞目标 */
+    async togglePostLike(postId, liked = true) {
+      const path = `/posts/${encodeURIComponent(postId)}/like`;
+      return liked ? request(path, { method: 'PUT' }) : request(path, { method: 'DELETE' });
+    },
+
+    /** 收藏话题：POST /bookmarks { bookmarkableType, bookmarkableId } */
+    async addTopicBookmark(topicId) {
+      return request('/bookmarks', {
+        method: 'POST',
+        body: { bookmarkableType: 'TOPIC', bookmarkableId: String(topicId) },
+      });
+    },
+
+    async removeBookmark(bookmarkId) {
+      return request(`/bookmarks/${encodeURIComponent(bookmarkId)}`, { method: 'DELETE' });
+    },
+
+    /** 拿话题当前的收藏 id（收藏态存在 topics 详情的 viewerState.bookmarkId） */
+    async topicBookmarkId(topicId) {
+      const t = await get(`/topics/${encodeURIComponent(topicId)}`);
+      return (t.viewerState && t.viewerState.bookmarkId) || null;
+    },
+
     async publishPost(boardId, title, content) {
+      // 官方要求 tagIds（数组，元素是 tag 的 UUID），不是 slug
+      const slug = String(boardId || '');
+      const tagId = tagIdBySlug.get(slug) || (/^[0-9a-f-]{36}$/i.test(slug) ? slug : '');
+      const body = { title, markdown: stripTags(content) };
+      if (tagId) body.tagIds = [tagId];
       const res = await request('/posts', {
         method: 'POST',
         headers: { 'Idempotency-Key': crypto.randomUUID() },
-        body: { title, markdown: stripTags(content), tagSlug: boardId },
+        body,
       });
-      return { id: (res && (res.topicId || res.id)) || '' };
+      const id = (res && (res.topicId || res.id || res.submissionId)) || '';
+      const status = String((res && (res.status || res.state)) || '').toUpperCase();
+      return { id, pending: !id || status.includes('PENDING') || status.includes('REVIEW') };
     },
 
     // ---- 作品 -----------------------------------------------------------

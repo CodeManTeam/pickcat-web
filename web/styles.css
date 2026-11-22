@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light;
   --blue: #1677ff;
   --blue-weak: #edf4ff;
@@ -3854,4 +3854,60 @@ body.show-back-btn .user-reader > *:first-child {
 .msg-more {
   padding: 8px 0 16px;
   text-align: center;
+}
+
+/* ---------------- 帖子点赞 / 收藏（写操作按钮） ---------------- */
+.actions-row .action-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-btn.active {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.action-btn.active .action-img {
+  filter: none;
+  opacity: 1;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 10px 0 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.detail-actions .action-img {
+  width: 19px;
+  height: 19px;
+  opacity: 0.75;
+}
+
+.detail-actions .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }

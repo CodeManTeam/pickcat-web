@@ -1379,6 +1379,29 @@ function mergePosts(posts) {
   state.posts = [...map.values()].sort((a, b) => b.createdAt - a.createdAt);
 }
 
+const topicFirstPostCache = new Map();
+
+/** 点赞目标是首楼 post，不是 topic；缓存一次免得每次点都多打一个请求 */
+async function topicLikeTarget(topicId) {
+  const key = String(topicId);
+  if (topicFirstPostCache.has(key)) return topicFirstPostCache.get(key);
+  const detail = await api.postDetail(topicId);
+  const id = detail.first_post_id || "";
+  if (id) topicFirstPostCache.set(key, id);
+  return id;
+}
+
+/** 收藏 / 取消收藏话题（取消要先拿到 bookmarkId） */
+async function toggleTopicBookmark(topicId, on) {
+  if (on) {
+    const res = await api.addTopicBookmark(topicId);
+    return (res && res.id) || (await api.topicBookmarkId(topicId));
+  }
+  const id = await api.topicBookmarkId(topicId);
+  if (id) await api.removeBookmark(id);
+  return null;
+}
+
 function createPost(post) {
   const article = document.createElement("article");
   article.className = "post-card";
@@ -1398,8 +1421,8 @@ function createPost(post) {
     <div class="actions-row">
       <span class="action" title="浏览"><img class="action-img" src="${ASSETS.view}" alt="" />${compactNumber(post.stats[0])}</span>
       <span class="action" title="评论"><img class="action-img" src="${ASSETS.homeComment}" alt="" />${compactNumber(post.stats[1])}</span>
-      <span class="action" title="点赞"><img class="action-img" src="public/assets/pickcat/ic_home_rec_pick.png" alt="" />${compactNumber(post.stats[2])}</span>
-      <span class="action" title="收藏"><img class="action-img" src="${ASSETS.pick}" alt="" />${compactNumber(post.stats[3])}</span>
+      <button class="action action-btn" type="button" title="点赞" data-feed-like><img class="action-img" src="public/assets/pickcat/ic_home_rec_pick.png" alt="" /><span data-like-count>${compactNumber(post.stats[2])}</span></button>
+      <button class="action action-btn" type="button" title="收藏" data-feed-bookmark><img class="action-img" src="${ASSETS.pick}" alt="" /><span data-bookmark-text>收藏</span></button>
     </div>
   `;
   $(".post-hit", article).addEventListener("click", () => openPost(post.id));
@@ -1420,6 +1443,64 @@ function createPost(post) {
       openImageViewer(img.currentSrc || img.src, img.alt || "帖子图片");
     });
   });
+
+  // 点赞 / 收藏（写操作，必须登录）
+  const likeBtn = $("[data-feed-like]", article);
+  likeBtn?.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    if (!state.auth?.token) {
+      statusToast("请先登录再点赞");
+      navigateLocal("login");
+      return;
+    }
+    const on = !article.classList.contains("liked");
+    const countEl = $("[data-like-count]", likeBtn);
+    article.classList.toggle("liked", on);
+    likeBtn.classList.toggle("active", on);
+    likeBtn.disabled = true;
+    post.stats[2] = Math.max(0, (Number(post.stats[2]) || 0) + (on ? 1 : -1));
+    if (countEl) countEl.textContent = compactNumber(post.stats[2]);
+    try {
+      const target = await topicLikeTarget(post.id);
+      if (!target) throw new Error("这条内容暂不支持点赞");
+      await api.togglePostLike(target, on);
+    } catch (error) {
+      article.classList.toggle("liked", !on);
+      likeBtn.classList.toggle("active", !on);
+      post.stats[2] = Math.max(0, (Number(post.stats[2]) || 0) + (on ? -1 : 1));
+      if (countEl) countEl.textContent = compactNumber(post.stats[2]);
+      statusToast(error.message || "点赞失败");
+    } finally {
+      likeBtn.disabled = false;
+    }
+  });
+
+  const bookmarkBtn = $("[data-feed-bookmark]", article);
+  bookmarkBtn?.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    if (!state.auth?.token) {
+      statusToast("请先登录再收藏");
+      navigateLocal("login");
+      return;
+    }
+    const on = !article.classList.contains("bookmarked");
+    const textEl = $("[data-bookmark-text]", bookmarkBtn);
+    article.classList.toggle("bookmarked", on);
+    bookmarkBtn.classList.toggle("active", on);
+    bookmarkBtn.disabled = true;
+    if (textEl) textEl.textContent = on ? "已收藏" : "收藏";
+    try {
+      await toggleTopicBookmark(post.id, on);
+    } catch (error) {
+      article.classList.toggle("bookmarked", !on);
+      bookmarkBtn.classList.toggle("active", !on);
+      if (textEl) textEl.textContent = !on ? "已收藏" : "收藏";
+      statusToast(error.message || "收藏失败");
+    } finally {
+      bookmarkBtn.disabled = false;
+    }
+  });
+
   return article;
 }
 
@@ -2387,6 +2468,16 @@ async function renderPostDetail(id) {
         <span>${formatDate(detail.created_at)}</span>
       </div>
       <div class="detail-stats"><span>${compactNumber(detail.n_views)} 浏览</span><span>${compactNumber(detail.n_replies)} 回帖</span><span>${compactNumber(detail.n_comments)} 评论</span></div>
+      <div class="detail-actions">
+        <button class="action-btn ${detail.liked ? "active" : ""}" type="button" data-detail-like>
+          <img class="action-img" src="public/assets/pickcat/ic_home_rec_pick.png" alt="" />
+          <span data-detail-like-count>${compactNumber(detail.n_likes)}</span>
+        </button>
+        <button class="action-btn ${detail.bookmark_id ? "active" : ""}" type="button" data-detail-bookmark>
+          <img class="action-img" src="${ASSETS.pick}" alt="" />
+          <span data-detail-bookmark-text>${detail.bookmark_id ? "已收藏" : "收藏"}</span>
+        </button>
+      </div>
       <div class="detail-content">${sanitizeHtml(detail.content)}</div>
       <section class="detail-replies">
         <div class="section-head">
@@ -2409,6 +2500,60 @@ async function renderPostDetail(id) {
       })
     );
     bindImageViewer($(".detail-content", root));
+
+    const detailLikeBtn = $("[data-detail-like]", root);
+    detailLikeBtn?.addEventListener("click", async () => {
+      if (!state.auth?.token) {
+        statusToast("请先登录再点赞");
+        navigateLocal("login");
+        return;
+      }
+      if (!detail.first_post_id) {
+        statusToast("这条内容暂不支持点赞");
+        return;
+      }
+      const on = !detail.liked;
+      const countEl = $("[data-detail-like-count]", detailLikeBtn);
+      detail.liked = on;
+      detail.n_likes = Math.max(0, (Number(detail.n_likes) || 0) + (on ? 1 : -1));
+      detailLikeBtn.classList.toggle("active", on);
+      detailLikeBtn.disabled = true;
+      if (countEl) countEl.textContent = compactNumber(detail.n_likes);
+      try {
+        await api.togglePostLike(detail.first_post_id, on);
+      } catch (error) {
+        detail.liked = !on;
+        detail.n_likes = Math.max(0, (Number(detail.n_likes) || 0) + (on ? -1 : 1));
+        detailLikeBtn.classList.toggle("active", !on);
+        if (countEl) countEl.textContent = compactNumber(detail.n_likes);
+        statusToast(error.message || "点赞失败");
+      } finally {
+        detailLikeBtn.disabled = false;
+      }
+    });
+
+    const detailBookmarkBtn = $("[data-detail-bookmark]", root);
+    detailBookmarkBtn?.addEventListener("click", async () => {
+      if (!state.auth?.token) {
+        statusToast("请先登录再收藏");
+        navigateLocal("login");
+        return;
+      }
+      const on = !detail.bookmark_id;
+      const textEl = $("[data-detail-bookmark-text]", detailBookmarkBtn);
+      detailBookmarkBtn.disabled = true;
+      try {
+        const id = await toggleTopicBookmark(detail.id, on);
+        detail.bookmark_id = on ? id || "pending" : null;
+        detailBookmarkBtn.classList.toggle("active", on);
+        if (textEl) textEl.textContent = on ? "已收藏" : "收藏";
+      } catch (error) {
+        statusToast(error.message || "收藏失败");
+      } finally {
+        detailBookmarkBtn.disabled = false;
+      }
+    });
+
     bindDetailReplyEvents(id);
     await loadPostReplies(id);
   } catch (error) {
@@ -3930,6 +4075,11 @@ async function publishPost() {
   try {
     const safeBody = body.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     const result = await api.publishPost(boardId, title, `<p>${safeBody}</p>`);
+    if (result.pending) {
+      statusToast("已提交审核，通过后会出现在社区");
+      navigateLocal("home");
+      return;
+    }
     await openPost(result.id);
   } catch (error) {
     alert(`发布失败：${error.message}`);
