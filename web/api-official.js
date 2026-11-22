@@ -233,6 +233,7 @@
       created_at: secs(p.createdAt),
       n_likes: p.likeCount || 0,
       is_liked: Boolean(p.viewerState && p.viewerState.liked),
+      post_number: p.postNumber || 0,
       n_comments: (p.children || []).length,
       comments: (p.children || []).map((c) => ({
         user: {
@@ -635,6 +636,22 @@ const BOARD_DESC = {
 
     async featuredTopics(userId) {
       return get(`/users/${encodeURIComponent(userId)}/featured-topics`);
+    },
+
+    // ---- 账号设置 ---------------------------------------------------------
+    async avatarPresets() {
+      return get('/avatar-presets');
+    },
+
+    async updateProfile(userId, patch) {
+      return request(`/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body: patch });
+    },
+
+    async setAvatarPreset(userId, presetId) {
+      return request(`/users/${encodeURIComponent(userId)}/avatar`, {
+        method: 'PUT',
+        body: { type: 'PRESET', presetId: Number(presetId) },
+      });
     },
 
     async publishPost(boardId, title, content) {

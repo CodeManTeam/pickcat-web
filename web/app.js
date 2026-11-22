@@ -191,6 +191,8 @@ const state = {
   feedLoading: false,
   feedDone: false,
   discoverWorks: [],
+  featuredWorks: null,
+  featuredLoading: false,
   discoverLoaded: false,
   discoverLoading: false,
   discoverOffset: 0,
@@ -1832,10 +1834,30 @@ async function loadMoreFeed() {
   }
 }
 
+async function loadFeaturedWorks() {
+  if (state.featuredLoading) return;
+  state.featuredLoading = true;
+  try {
+    const res = await api.featuredWorks();
+    state.featuredWorks = (res.items || []).slice(0, 6).map((item) => normalizeFeedWork(item));
+  } catch {
+    state.featuredWorks = [];
+  } finally {
+    state.featuredLoading = false;
+  }
+}
+
 function renderFeed() {
   if (state.feedTab === "discover") {
     if (!state.discoverLoaded && !state.discoverLoading) loadDiscoverWorks().then(renderFeed);
+    if (!state.featuredWorks && !state.featuredLoading) loadFeaturedWorks().then(renderFeed);
     const nodes = [];
+    if (state.featuredWorks && state.featuredWorks.length) {
+      const head = document.createElement("div");
+      head.className = "section-head flush";
+      head.innerHTML = "<h2>精选作品</h2>";
+      nodes.push(head, ...state.featuredWorks.map(createHomeWorkCard));
+    }
     nodes.push(...(state.discoverWorks.length
       ? state.discoverWorks.map(createHomeWorkCard)
       : [state.discoverLoading || !state.discoverLoaded ? loadingCard("正在读取发现作品...", "发现加载中") : statusCard("暂时没有发现作品")]));
@@ -2338,6 +2360,7 @@ function handleMineAction(action) {
       window.open("https://github.com/CodeManTeam/Pickcat-Reborn/issues", "_blank", "noreferrer");
       break;
     case "settings":
+      openSettingsSheet();
       break;
     case "logout":
       handleLogout();
@@ -2512,6 +2535,103 @@ function openReportSheet({ postId, targetKind = "POST", title = "" }) {
         }
       });
       host.appendChild(button);
+    });
+  });
+}
+
+/** 投币 */
+async function openCoinSheet(work) {
+  if (!state.auth?.token) {
+    statusToast("请先登录");
+    navigateLocal("login");
+    return;
+  }
+  openModalSheet(`给《${work.name || "作品"}》投币`, async (body, close) => {
+    const stats = await api.workStats(work.id).catch(() => null);
+    const balance = stats && stats.viewer ? stats.viewer.tokenBalance ?? 0 : 0;
+    const coined = Boolean(stats && stats.viewer && stats.viewer.coined);
+    body.innerHTML = `
+      <p class="favorites-empty">当前余额 ${balance} 币${coined ? " · 你已经投过币" : ""}</p>
+      <div class="coin-grid"></div>`;
+    const host = body.querySelector(".coin-grid");
+    [1, 2, 5, 10].forEach((amount) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "coin-item";
+      button.textContent = `${amount} 币`;
+      button.disabled = amount > balance;
+      button.addEventListener("click", async () => {
+        [...host.children].forEach((item) => (item.disabled = true));
+        try {
+          await api.coinWork(work.id, amount);
+          statusToast(`已投 ${amount} 币`);
+          close();
+          renderWorkReader();
+        } catch (error) {
+          [...host.children].forEach((item) => (item.disabled = false));
+          statusToast(error.message || "投币失败");
+        }
+      });
+      host.appendChild(button);
+    });
+  });
+}
+
+/** 账号设置：简介 + 官方头像预设 */
+async function openSettingsSheet() {
+  if (!state.auth?.token) {
+    statusToast("请先登录");
+    navigateLocal("login");
+    return;
+  }
+  openModalSheet("账号设置", async (body) => {
+    const presets = await api.avatarPresets().catch(() => ({ items: [] }));
+    body.innerHTML = `
+      <label class="settings-label" for="pc-bio">个人简介</label>
+      <textarea id="pc-bio" class="settings-textarea" maxlength="200" placeholder="介绍一下自己">${escapeHtml(state.user?.description || "")}</textarea>
+      <button type="button" class="primary-btn" data-save-bio style="width:100%;margin:10px 0 18px;">保存简介</button>
+      <p class="settings-label">头像（官方预设）</p>
+      <div class="avatar-grid"></div>
+      <p class="favorites-empty" data-settings-hint>点选即会立即更换头像</p>`;
+    body.querySelector("[data-save-bio]").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const bio = body.querySelector("#pc-bio").value.trim();
+      button.disabled = true;
+      button.textContent = "保存中…";
+      try {
+        await api.updateProfile(state.user.id, { bio });
+        state.user = { ...state.user, description: bio };
+        localStorage.setItem("pickcat:user", JSON.stringify(state.user));
+        renderMineShell(state.user);
+        statusToast("简介已保存");
+      } catch (error) {
+        statusToast(error.message || "保存失败");
+      } finally {
+        button.disabled = false;
+        button.textContent = "保存简介";
+      }
+    });
+
+    const grid = body.querySelector(".avatar-grid");
+    (presets.items || []).slice(0, 12).forEach((preset) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "avatar-item";
+      button.innerHTML = `<img src="${preset.url}" alt="" loading="lazy" />`;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await api.setAvatarPreset(state.user.id, preset.id);
+          await hydrateOfficialSession();
+          renderMineShell(state.user);
+          statusToast("头像已更新");
+        } catch (error) {
+          statusToast(error.message || "头像更新失败");
+        } finally {
+          button.disabled = false;
+        }
+      });
+      grid.appendChild(button);
     });
   });
 }
@@ -2803,6 +2923,9 @@ async function renderPostDetail(id) {
     });
 
     bindDetailReplyEvents(id);    await loadPostReplies(id);
+    if (detail.can_select_answer && detail.kind === "QUESTION") {
+      $$("[data-answer-reply]", root).forEach((button) => (button.hidden = false));
+    }
   } catch (error) {
     root.replaceChildren(errorCard(`帖子读取失败：${error.message}`, "帖子读取失败"));
   }
@@ -2821,6 +2944,7 @@ function normalizeReply(item) {
     nLikes: item.n_likes || item.liked_total || item.like_count || 0,
     liked: Boolean(item.is_liked || item.liked),
     nComments: item.n_comments || item.comments_total || item.comment_count || 0,
+    num: item.post_number || 0,
     comments: item.comments || item.earliest_comments || []
   };
 }
@@ -2844,6 +2968,7 @@ function createReplyCard(reply) {
       <div class="reply-meta">
         <button type="button" class="${reply.liked ? "liked" : ""}" data-like-reply>${reply.liked ? "已赞" : "赞"} ${compactNumber(reply.nLikes)}</button>
         <button type="button" data-open-reply>回复 ${compactNumber(reply.nComments)}</button>
+        ${reply.num ? `<button type="button" class="answer-btn" data-answer-reply hidden>设为答案</button>` : ""}
       </div>
       ${
         reply.comments?.length
@@ -2922,6 +3047,24 @@ function createReplyCard(reply) {
       button.textContent = "发送";
     }
   });
+  const answerBtn = $("[data-answer-reply]", node);
+  answerBtn?.addEventListener("click", async () => {
+    const topicId = state.activePostId;
+    if (!topicId || !reply.num) return;
+    answerBtn.disabled = true;
+    try {
+      await api.selectAnswer(topicId, reply.num);
+      statusToast("已设为答案");
+      answerBtn.textContent = "已设为答案";
+      $$("[data-answer-reply]").forEach((item) => {
+        if (item !== answerBtn) item.textContent = "设为答案";
+      });
+    } catch (error) {
+      answerBtn.disabled = false;
+      statusToast(error.message || "设置失败");
+    }
+  });
+
   bindImageViewer($(".reply-content", node));
   return node;
 }
@@ -3363,6 +3506,7 @@ async function renderWorkReader() {
         <button type="button" class="action ${detail.liked ? "active" : ""} ${state.auth?.token ? "" : "disabled"}" title="点赞" data-work-like><img class="action-img" src="public/assets/pickcat/ic_home_rec_pick.png" alt="" />${compactNumber(detail.likes)}</button>
         <button type="button" class="action ${detail.collected ? "active" : ""} ${state.auth?.token ? "" : "disabled"}" title="收藏" data-work-collect><img class="action-img" src="${ASSETS.pick}" alt="" />${compactNumber(detail.collects)}</button>
         <button type="button" class="action ${state.auth?.token ? "" : "disabled"}" title="评论" data-focus-comment><img class="action-img" src="${ASSETS.homeComment}" alt="" />${compactNumber(detail.comments || totalComments)}</button>
+        <button type="button" class="action ${state.auth?.token ? "" : "disabled"}" title="投币" data-work-coin><span>投币</span></button>
         <button type="button" class="action" title="分享" data-work-share><img class="action-img" src="${ASSETS.share}" alt="" />分享</button>
       </div>
       <div class="work-ext-links">
@@ -3550,6 +3694,15 @@ async function renderWorkReader() {
       button.disabled = false;
     }
   });
+  $("[data-work-coin]", root)?.addEventListener("click", () => {
+    if (!state.auth?.token) {
+      statusToast("请先登录");
+      navigateLocal("login");
+      return;
+    }
+    openCoinSheet(detail);
+  });
+
   $("[data-work-comment-form]", root)?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!state.auth?.token) {
