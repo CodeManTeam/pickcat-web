@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * 把 web/ 里的旧 UI（Pickcat-Reborn）打包成可独立安装的油猴脚本。
  *
@@ -22,7 +22,7 @@ const ROOT = join(HERE, '..');
 const WEB = join(ROOT, 'web');
 const DIST = join(ROOT, 'dist');
 
-const VERSION = process.env.PICKCAT_UA_VERSION || '1.0.1';
+const VERSION = process.env.PICKCAT_UA_VERSION || '1.0.2';
 const UPDATE_BASE =
   'https://raw.githubusercontent.com/CodeManTeam/pickcat-web/master/dist/pickcat-mobile.user.js';
 
