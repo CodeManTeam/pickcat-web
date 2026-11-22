@@ -1,4 +1,4 @@
-# PICKCAT 正式网页版
+﻿# PICKCAT 正式网页版
 
 **UI 直接用 Pickcat-Reborn 那一套**（`index.html` + `styles.css` + `app.js` + `public/assets`，手机端优先的
 Pickcat 原生观感，一行样式没重做），**只把数据层整体换成官方 API**：
@@ -14,7 +14,7 @@ Pickcat 原生观感，一行样式没重做），**只把数据层整体换成�
 
 > **油猴脚本（在官方站用旧 UI）**：见 [userscript/README.md](userscript/README.md)。
 > 装好 Tampermonkey 后直接开
-> <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/main/dist/pickcat-mobile.user.js>
+> <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/master/dist/pickcat-mobile.user.js>
 > 安装，再打开 <https://pickcat.dao3.fun/> 就是手机版旧界面；右侧「官方」小挂耳可随时切回。
 
 ## 快速开始

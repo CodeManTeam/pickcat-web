@@ -1,4 +1,4 @@
-# 油猴脚本：在官方站用手机版旧 UI
+﻿# 油猴脚本：在官方站用手机版旧 UI
 
 把 `pickcat-web` 的 Pickcat-Reborn 手机界面搬到**官方站** `https://pickcat.dao3.fun/` 上，
 不用再走第三方测试站。
@@ -7,7 +7,7 @@
 
 1. 浏览器装 [Tampermonkey](https://www.tampermonkey.net/)（Edge / Chrome / Firefox / 手机版都行）；
 2. 打开
-   <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/main/dist/pickcat-mobile.user.js>
+   <https://raw.githubusercontent.com/CodeManTeam/pickcat-web/master/dist/pickcat-mobile.user.js>
    ，Tampermonkey 会弹出安装页，点「安装」；
 3. 打开 <https://pickcat.dao3.fun/>，直接就是旧版界面。
 
