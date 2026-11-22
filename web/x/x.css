@@ -2180,3 +2180,30 @@ svg {
   color: var(--muted);
   font-size: 12px;
 }
+/* 侧栏发帖按钮（桌面宽屏入口） */
+.rail-compose {
+  margin-bottom: 10px;
+  background: var(--blue);
+  color: #fff;
+}
+
+.rail-compose span {
+  font-weight: 700;
+}
+
+.profile-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* 侧栏按钮主次：登录/注册（或发帖）为主，刷新为次 */
+.rail-foot #refreshBtn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.rail-foot #refreshBtn:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}

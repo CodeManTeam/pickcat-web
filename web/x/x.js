@@ -456,7 +456,7 @@
       `<section class="side-card" id="sideTags"><h2>热门喵圈</h2><div class="side-row"><div class="sk-line w70 shimmer" style="width:100%"></div></div></section>` +
       `<section class="side-card" id="sideUsers"><h2>活跃训练师</h2><div class="side-row"><div class="sk-line w70 shimmer" style="width:100%"></div></div></section>` +
       `<div class="side-foot">` +
-      `<a href="/m">Pickcat 手机版</a><a href="#/explore/hot">探索</a><a href="https://pickcat.dao3.fun/" target="_blank" rel="noopener">官方站</a>` +
+      `<a href="/m">Pickcat 版</a><a href="#/explore/hot">探索</a><a href="https://pickcat.dao3.fun/" target="_blank" rel="noopener">官方站</a>` +
       `<div style="margin-top:8px">第三方时间线视图 · 数据来自 PICKCAT 公开 API</div>` +
       `</div>`;
 
@@ -593,14 +593,28 @@
       (me ? `<img src="${esc(avatarOf(me))}" alt="" />` : ICONS.user) +
       `</a>` +
       `<a class="m-brand" href="#/home/recommended" aria-label="PICKCAT">${BRAND}</a>` +
-      `<button class="m-btn" type="button" data-compose aria-label="发帖">${ICONS.plus}</button>` +
-      `<a class="m-btn" href="/m" aria-label="手机版完整界面" title="手机版（收藏/设置/投币等）">${ICONS.phone}</a>` +
+      (state.viewer
+        ? `<button class="m-btn" type="button" data-compose aria-label="发帖">${ICONS.plus}</button>`
+        : `<button class="m-btn js-login" type="button" aria-label="登录">登录</button>`) +
+      `<a class="m-btn" href="/m" aria-label="Pickcat 版完整界面" title="Pickcat 版（收藏/设置/投币等）">${ICONS.phone}</a>` +
       `<button class="m-btn" type="button" data-theme-toggle aria-label="切换外观">${ICONS.theme}</button>`;
 
+    const composeRail = $('.rail-compose');
+    if (composeRail) {
+      if (state.viewer) {
+        composeRail.innerHTML = `${ICONS.plus}<span>发帖</span>`;
+        composeRail.setAttribute('data-compose', '');
+        composeRail.classList.remove('js-login');
+      } else {
+        composeRail.innerHTML = '<span>登录 / 注册</span>';
+        composeRail.removeAttribute('data-compose');
+        composeRail.classList.add('js-login');
+      }
+    }
     const refresh = $('#refreshBtn');
     refresh.innerHTML = `${ICONS.refresh}<span>刷新时间线</span>`;
     const phone = $('.rail-foot a.rail-link');
-    phone.innerHTML = `${ICONS.phone}<span>手机版</span>`;
+    phone.innerHTML = `${ICONS.phone}<span>Pickcat 版</span>`;
     const themeBtn = $('#themeBtn');
     themeBtn.innerHTML = `${ICONS.theme}<span>${THEME_LABEL[state.theme]}</span>`;
   }
@@ -1069,7 +1083,7 @@ function restoreRouteScroll(key) {
             return items.length;
           };
           if (!addPage(page)) {
-            repliesHost.innerHTML = `<div class="empty"><p>还没有回复。去手机版或者官方站参与讨论吧。</p></div>`;
+            repliesHost.innerHTML = `<div class="empty"><p>还没有回复。去 Pickcat 版或者官方站参与讨论吧。</p></div>`;
             return;
           }
           let cursor = (page.pageInfo && page.pageInfo.nextCursor) || null;
@@ -1108,7 +1122,7 @@ function restoreRouteScroll(key) {
         host.innerHTML = emptyState({
           title: '帖子加载失败',
           text: esc(error.message || '网络异常'),
-          action: `<a class="btn-solid" href="/m">回到手机版</a>`,
+          action: `<a class="btn-solid" href="/m">回到 Pickcat 版</a>`,
         });
       });
 
