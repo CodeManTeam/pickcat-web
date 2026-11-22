@@ -2476,7 +2476,96 @@ function createWorkReaderUrl(work) {
   return url.toString();
 }
 
+// ---------------------------------------------------------------------------
+// 阅读位置记忆：每个视图（首页 / 帖子 / 作品 / 用户 / 搜索…）各自记住滚到哪儿，
+// 返回或刷新后自动回到原来的位置，不用重新爬楼。
+// ---------------------------------------------------------------------------
+const SCROLL_MEMORY_KEY = "pickcat:scroll-memory:v1";
+const scrollMemory = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(SCROLL_MEMORY_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+})();
+let scrollSaveTimer = 0;
+let scrollRestoreTimers = [];
+let scrollRestoreCancelled = false;
+
+function routeKey(view = state.currentView, params = {}) {
+  if (!view) return "home";
+  if (view === "home") return `home:${state.feedTab || "recommend"}`;
+  const id =
+    params.id ||
+    (view === "detail"
+      ? state.activePostId
+      : view === "work"
+        ? state.activeWorkId
+        : view === "user"
+          ? state.activeUserId
+          : "");
+  if (id) return `${view}:${id}`;
+  if (view === "search") {
+    const q = params.q || new URLSearchParams(location.search).get("q") || "";
+    return q ? `search:${q}` : "search";
+  }
+  if (view === "tool") return `tool:${state.activeToolId || ""}`;
+  return view;
+}
+
+function persistScrollMemory() {
+  try {
+    const keys = Object.keys(scrollMemory);
+    if (keys.length > 50) {
+      keys.sort((a, b) => (scrollMemory[a].at || 0) - (scrollMemory[b].at || 0));
+      keys.slice(0, keys.length - 50).forEach((k) => delete scrollMemory[k]);
+    }
+    localStorage.setItem(SCROLL_MEMORY_KEY, JSON.stringify(scrollMemory));
+  } catch {
+    /* 隐私模式忽略 */
+  }
+}
+
+function saveScrollPosition(key = routeKey()) {
+  const y = Math.round(window.scrollY || 0);
+  if (y < 40) {
+    if (scrollMemory[key]) {
+      delete scrollMemory[key];
+      persistScrollMemory();
+    }
+    return;
+  }
+  scrollMemory[key] = { y, h: document.documentElement.scrollHeight, at: Date.now() };
+  persistScrollMemory();
+}
+
+function cancelScrollRestore() {
+  scrollRestoreCancelled = true;
+  scrollRestoreTimers.forEach((id) => clearTimeout(id));
+  scrollRestoreTimers = [];
+}
+
+function restoreScrollPosition(key = routeKey()) {
+  const entry = scrollMemory[key];
+  if (!entry || !entry.y) return;
+  cancelScrollRestore();
+  scrollRestoreCancelled = false;
+  const apply = () => {
+    if (scrollRestoreCancelled) return;
+    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    if (max < entry.y - 8) return; // 内容还没渲染够，等下一拍
+    const y = Math.min(entry.y, max);
+    if (Math.abs(window.scrollY - y) > 2) window.scrollTo({ top: y, behavior: "auto" });
+    else cancelScrollRestore();
+  };
+  apply();
+  [60, 180, 400, 900, 1600, 2600, 4000].forEach((ms) => {
+    scrollRestoreTimers.push(setTimeout(apply, ms));
+  });
+}
+
 function navigateLocal(view, params = {}, options = {}) {
+  saveScrollPosition(); // 离开前记住当前位置
   const url = new URL(location.pathname, location.origin);
   ["id", "q", "tool"].forEach((key) => url.searchParams.delete(key));
   url.searchParams.set("view", view);
@@ -2493,7 +2582,9 @@ function navigateLocal(view, params = {}, options = {}) {
   if (view !== "detail") state.activePostId = "";
   if (view !== "tool") state.activeToolId = "";
   setView(view, { direction: resolveViewDirection(state.currentView, view, options.direction) });
-  window.scrollTo({ top: 0 });
+  const targetKey = routeKey(view, params);
+  if (scrollMemory[targetKey]?.y) restoreScrollPosition(targetKey);
+  else window.scrollTo({ top: 0 });
 }
 
 function openWorkReader(work) {
@@ -3512,6 +3603,9 @@ function setView(view, options = {}) {
     if (view === "user") renderUserReader();
     if (view === "tool") renderToolRunner();
     if (view === "detail" && state.activePostId) renderPostDetail(state.activePostId);
+    // 前进/后退（popstate）也回到原来的阅读位置
+    const memoryKey = routeKey();
+    if (scrollMemory[memoryKey]?.y) restoreScrollPosition(memoryKey);
   });
 }
 
@@ -5445,6 +5539,20 @@ function normalizeStaticLabels() {
 
 function bindEvents() {
   normalizeStaticLabels();
+  // 阅读位置：滚动时节流保存，离开页面时立刻保存
+  window.addEventListener(
+    "scroll",
+    () => {
+      clearTimeout(scrollSaveTimer);
+      scrollSaveTimer = setTimeout(() => saveScrollPosition(), 250);
+    },
+    { passive: true }
+  );
+  window.addEventListener("pagehide", () => saveScrollPosition());
+  // 用户一旦自己滚动，就取消还没执行完的恢复，别把人拽回去
+  ["wheel", "touchstart", "keydown"].forEach((type) => {
+    window.addEventListener(type, cancelScrollRestore, { passive: true });
+  });
   $$("[data-nav]").forEach((button) => button.addEventListener("click", () => navigateLocal(button.dataset.nav)));
   $("[data-create-open]")?.addEventListener("click", openCreateSheet);
   $$("[data-create-close]").forEach((button) => button.addEventListener("click", closeCreateSheet));
@@ -5483,9 +5591,13 @@ function bindEvents() {
   });
   $$("[data-feed-tab]").forEach((tab) => {
     tab.addEventListener("click", () => {
+      saveScrollPosition(routeKey("home")); // 记住旧标签的位置
       state.feedTab = tab.dataset.feedTab;
       $$("[data-feed-tab]").forEach((item) => item.classList.toggle("active", item === tab));
       renderFeed();
+      const key = routeKey("home");
+      if (scrollMemory[key]?.y) restoreScrollPosition(key);
+      else window.scrollTo({ top: 0 });
     });
   });
   $$("[data-search-tab]").forEach((tab) => {
@@ -5582,6 +5694,10 @@ async function init() {
   syncHomeTopbarVisibility({ force: true });
   await loadCircleData();
   await loadHomeData();
+  // 刷新后回到上次看到的位置（首屏数据已就绪再恢复）
+  if (state.currentView === "home" && scrollMemory[routeKey()]?.y) {
+    restoreScrollPosition(routeKey());
+  }
   syncHomeTopbarVisibility({ force: true });
   window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
     if (state.currentView !== "work") return;

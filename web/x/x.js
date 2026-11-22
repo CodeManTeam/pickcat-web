@@ -619,6 +619,55 @@
 
   let disposeView = null;
   let routeToken = 0;
+let renderedRouteKey = '';
+const X_SCROLL_KEY = 'pickcat:x:scroll:v1';
+const xScrollMemory = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(X_SCROLL_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+})();
+let xScrollTimer = 0;
+
+function currentXKey() {
+  return location.hash || '#/home/recommended';
+}
+
+function saveRouteScroll() {
+  if (!renderedRouteKey) return;
+  const y = Math.round(window.scrollY || 0);
+  if (y < 40) delete xScrollMemory[renderedRouteKey];
+  else xScrollMemory[renderedRouteKey] = { y, at: Date.now() };
+  try {
+    localStorage.setItem(X_SCROLL_KEY, JSON.stringify(xScrollMemory));
+  } catch {
+    /* ignore */
+  }
+}
+
+function restoreRouteScroll(key) {
+  const entry = xScrollMemory[key];
+  if (!entry || !entry.y) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  let cancelled = false;
+  const cancel = () => {
+    cancelled = true;
+  };
+  ['wheel', 'touchstart', 'keydown'].forEach((type) =>
+    window.addEventListener(type, cancel, { passive: true, once: true })
+  );
+  const apply = () => {
+    if (cancelled) return;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max < entry.y - 8) return;
+    window.scrollTo(0, Math.min(entry.y, max));
+  };
+  apply();
+  [120, 400, 900, 1600, 2600].forEach((ms) => setTimeout(apply, ms));
+}
 
   function resetMain(html) {
     const main = $('#main');
@@ -1053,6 +1102,7 @@
   }
 
   function route() {
+  saveRouteScroll(); // 切换前记住上一个页面的位置
     if (disposeView) {
       try {
         disposeView();
@@ -1078,7 +1128,9 @@
     if (head !== 't' && head !== 'u') document.title = 'PICKCAT · 时间线';
     document.body.dataset.view = head;
     renderChrome();
-    window.scrollTo(0, 0);
+    const nextKey = currentXKey();
+    restoreRouteScroll(nextKey);
+    renderedRouteKey = nextKey;
   }
 
   /* ----------------------------------------------------------------- 登录 */
@@ -1321,6 +1373,16 @@
   if (refreshBtn) refreshBtn.addEventListener('click', () => route());
 
   window.addEventListener('hashchange', route);
+  // 阅读位置：滚动时节流保存（刷新后能回到原处）
+  window.addEventListener(
+    'scroll',
+    () => {
+      clearTimeout(xScrollTimer);
+      xScrollTimer = setTimeout(saveRouteScroll, 250);
+    },
+    { passive: true }
+  );
+  window.addEventListener('pagehide', saveRouteScroll);
   window.addEventListener('scroll', closeMenu, { passive: true });
 
   /* ----------------------------------------------------------------- 启动 */
